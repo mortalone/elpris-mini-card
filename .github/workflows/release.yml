@@ -1,0 +1,28 @@
+name: Publish release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version matching package.json (for example 0.1.0)'
+        required: true
+        default: '0.1.0'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check && npm test
+      - name: Check version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node -e 'if(process.env.RELEASE_VERSION!==require("./package.json").version) process.exit(1)'
+      - name: Publish tagged release and card
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: gh release create "v$RELEASE_VERSION" elpris-mini-card.js --target "$GITHUB_SHA" --title "Elpris Mini Card v$RELEASE_VERSION" --generate-notes
