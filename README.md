@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.1.0**. Første version: test ved siden af dit eksisterende kort, før du erstatter det. Det faktiske ressourceforbrug og udseende på din tablet er endnu ikke målt.
+Version **0.1.1**. Tematilpasset baggrund og stabil CSS ved gentegning. Kiosk Satellite/WebView er endnu ikke verificeret.
 
 ## Installation gennem HACS
 
