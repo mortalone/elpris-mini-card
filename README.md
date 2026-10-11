@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.1.5**. Baggrundsreglen prioriteres eksplicit på kortets `ha-card` for at teste forskelle mellem browser og Kiosk Satellite. Kiosk Satellite/WebView er endnu ikke verificeret.
+Version **0.1.6**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -95,11 +95,11 @@ Blå felter og streger langs tidsaksen markerer de billigste individuelle prisin
 
 Manglende fremtidige priser efterlader resten af grafen tom. Mangler det aktuelle interval, viser overskriften en streg. Grafen forbinder ikke perioder med kendte huller. I døgnvisning følges browserens lokale tidszone, inklusive 23/25-timers døgn. Brug dansk tidszone på tabletten.
 
-**v0.1.5:** Hardkodet japansk baggrund er fjernet. Opt-in `debug: true` viser variabler på host, overordnede DOM-/Shadow DOM-elementer samt Home Assistants registrerede temaer for at undersøge, hvor CSS-arven afbrydes.\n\n**Diagnose i Kiosk Satellite:** Sæt midlertidigt `debug: true` på kortet. Under grafen vises indlæst kortversion, WebView User Agent, CSS-temavariabler, beregnet `ha-card`-baggrund og SVG-baggrund. Fjern `debug: true` efter fejlsøgning.
+**Tema:** Kortet angiver ikke selv baggrundsfarve eller gradient. Grafens kurve, nu-markør og billigste timer har egne funktionsfarver. Hvis et tema ikke virker i Kiosk Satellite, skal proxy-/WebSocket-filtrering af Home Assistants temaer undersøges. `debug: true` blev fjernet i v0.1.6.
 
 ## Opdateringer og udvikling
 
-HACS kan installere direkte fra `main`; GitHub Releases er ikke nødvendige til første installation. Uden releases bruger HACS commit-versioner. Workflowet **Publish release** kan køres manuelt under GitHub Actions og udgiver versionen fra `package.json` med JS-filen som releasebilag. HACS-opdateringer installeres gennem HACS som for andre kort.
+Udgivelse sker automatisk, når versionsnummeret i `package.json` opdateres på `main`. GitHub Actions kører syntakscheck og tests før udgivelse som GitHub Release. HACS kan derefter installere den nye version.
 
 Kortet gentegner kun ved nye prisdata/enhed, ændret bredde og en gang i minuttet for Nu-markøren. Timere og størrelsesobserver fjernes, når kortet forlader siden. Det opretter ingen ekstra abonnementer eller historikforespørgsler; det reducerer ikke Home Assistants almindelige WebSocket-trafik.
 
@@ -108,4 +108,4 @@ npm run check
 npm test
 ```
 
-Der er ingen pakker at installere. Testene kontrollerer datahuller, negative priser, dubletter, ugyldige data, opdateringsfiltrering og oprydning. Første version er ikke endnu verificeret i en rigtig Home Assistant-installation.
+Der er ingen pakker at installere. Testene kontrollerer datahuller, negative priser, dubletter, ugyldige data, opdateringsfiltrering og oprydning. Kortet er testet i brugerens Home Assistant-installation; visning og temaarv afhænger af de temaer, som klienten faktisk modtager.
