@@ -1,7 +1,7 @@
-/* Elpris Mini Card v0.1.1 — MIT — no external dependencies */
+/* Elpris Mini Card v0.1.2 — MIT — no external dependencies */
 (() => {
   'use strict';
-  const VERSION = '0.1.1';
+  const VERSION = '0.1.2';
   const DEFAULT_COLORS = [
     {value: 1, color: 'cyan'}, {value: 2, color: 'green'},
     {value: 3, color: 'orange'}, {value: 4, color: 'red'},
@@ -99,7 +99,7 @@
       const end=c.mode==='day' ? +tomorrow : now+c.hours_forward*3600000;
       const current=this._data.find(p=>p.t<=now && p.end>now);
       const visible=this._data.filter(p=>p.end>start && p.t<end);
-      this._style.textContent=`:host{display:block}ha-card{height:${h}px;box-sizing:border-box;overflow:hidden;padding:0;background:var(--kitchen-card-background,var(--ha-card-background,var(--card-background-color,rgba(250,246,235,.68))))}svg{display:block;width:100%;height:100%;background:transparent;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}.empty{height:100%;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}`;
+      this._style.textContent=`:host{display:block}ha-card{height:${h}px;box-sizing:border-box;overflow:hidden;padding:0;background:var(--kitchen-card-background,var(--ha-card-background,var(--card-background-color,rgba(250,246,235,.68)))) !important;background-image:var(--kitchen-card-background,var(--ha-card-background,none)) !important}svg{display:block;width:100%;height:100%;background:transparent;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}.empty{height:100%;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}`;
       if (!visible.length) {this._root.innerHTML='<div class="empty">Ingen prisdata i den valgte periode</div>'; return;}
       const left=c.show_yaxis?30:10, right=w-10, top=c.show_header?32:12, bottom=h-23;
       let low=Math.min(0,...visible.map(p=>p.value)), high=Math.max(...visible.map(p=>p.value));
