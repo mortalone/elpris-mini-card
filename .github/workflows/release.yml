@@ -1,13 +1,19 @@
 name: Publish release
 on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version matching package.json (for example 0.1.2)'
-        required: true
-        default: '0.1.2'
+        description: 'Optional version (must match package.json)'
+        required: false
 permissions:
   contents: write
+concurrency:
+  group: publish-elpris-mini-card
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -17,12 +23,33 @@ jobs:
         with:
           node-version: '22'
       - run: npm run check && npm test
-      - name: Check version
+      - name: Resolve and validate version
+        id: version
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
-        run: node -e 'if(process.env.RELEASE_VERSION!==require("./package.json").version) process.exit(1)'
-      - name: Publish tagged release and card
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          VERSION=$(node -p 'require("./package.json").version')
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid semantic version: $VERSION"; exit 1
+          fi
+          if [[ -n "$REQUESTED_VERSION" && "$REQUESTED_VERSION" != "$VERSION" ]]; then
+            echo "Requested version differs from package.json"; exit 1
+          fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Check if release exists
+        id: exists
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version }}
-        run: gh release create "v$RELEASE_VERSION" elpris-mini-card.js --target "$GITHUB_SHA" --title "Elpris Mini Card v$RELEASE_VERSION" --generate-notes
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish tagged release and card
+        if: steps.exists.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: gh release create "v$VERSION" elpris-mini-card.js --target "$GITHUB_SHA" --title "Elpris Mini Card v$VERSION" --generate-notes
