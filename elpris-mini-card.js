@@ -1,7 +1,7 @@
-/* Elpris Mini Card v0.1.4 — MIT — no external dependencies */
+/* Elpris Mini Card v0.1.5 — MIT — no external dependencies */
 (() => {
   'use strict';
-  const VERSION = '0.1.4';
+  const VERSION = '0.1.5';
   const DEFAULT_COLORS = [
     {value: 1, color: 'cyan'}, {value: 2, color: 'green'},
     {value: 3, color: 'orange'}, {value: 4, color: 'red'},
@@ -109,6 +109,21 @@
         'SVG background = '+(svgStyle?.background||'[no SVG]'),
         'gradient supported = '+CSS.supports('background','linear-gradient(135deg, rgba(250,246,235,.88), rgba(250,246,235,.38))'),
         'root color scheme = '+getComputedStyle(document.documentElement).colorScheme];
+      // Inspect the actual inheritance path through nested HA shadow roots.
+      let node=this, depth=0;
+      while (node && depth<14) {
+        const css=getComputedStyle(node);
+        const id=(node.localName||'node')+(node.id?'#'+node.id:'');
+        const vars=keys.map(k=>k.replace('--','')+':'+(css.getPropertyValue(k).trim()||'∅')).join(' | ');
+        lines.push('ancestor '+depth+' '+id+' => '+vars);
+        const root=node.getRootNode();
+        node=node.parentElement || (root && root.host) || null;
+        depth++;
+      }
+      const theme=this._hass?.themes;
+      lines.push('hass theme selected='+String(theme?.theme||'[none]'));
+      lines.push('hass dark mode='+String(theme?.darkMode));
+      lines.push('hass theme names='+Object.keys(theme?.themes||{}).slice(0,12).join(', '));
       this._debug.textContent=lines.join('\n');
     }
     _render() {
@@ -120,7 +135,7 @@
       const end=c.mode==='day' ? +tomorrow : now+c.hours_forward*3600000;
       const current=this._data.find(p=>p.t<=now && p.end>now);
       const visible=this._data.filter(p=>p.end>start && p.t<end);
-      this._style.textContent=`:host{display:block}ha-card{height:${h}px;box-sizing:border-box;overflow:hidden;padding:0;background:var(--kitchen-card-background,var(--ha-card-background,linear-gradient(135deg,rgba(250,246,235,.88) 0%,rgba(250,246,235,.68) 58%,rgba(250,246,235,.38) 100%))) !important}svg{display:block;width:100%;height:100%;background:transparent;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}.empty{height:100%;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}`;
+      this._style.textContent=`:host{display:block}ha-card{height:${h}px;box-sizing:border-box;overflow:hidden;padding:0;background:var(--ha-card-background,var(--card-background-color,transparent))}svg{display:block;width:100%;height:100%;background:transparent;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}.empty{height:100%;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}`;
       if (!visible.length) {this._root.innerHTML='<div class="empty">Ingen prisdata i den valgte periode</div>'; this._showDebug(); return;}
       const left=c.show_yaxis?30:10, right=w-10, top=c.show_header?32:12, bottom=h-23;
       let low=Math.min(0,...visible.map(p=>p.value)), high=Math.max(...visible.map(p=>p.value));
