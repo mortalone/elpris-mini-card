@@ -1,7 +1,7 @@
-/* Elpris Mini Card v0.1.0 — MIT — no external dependencies */
+/* Elpris Mini Card v0.1.1 — MIT — no external dependencies */
 (() => {
   'use strict';
-  const VERSION = '0.1.0';
+  const VERSION = '0.1.1';
   const DEFAULT_COLORS = [
     {value: 1, color: 'cyan'}, {value: 2, color: 'green'},
     {value: 3, color: 'orange'}, {value: 4, color: 'red'},
@@ -44,6 +44,7 @@
   class ElprisMiniCard extends HTMLElement {
     constructor() {
       super(); this.attachShadow({mode:'open'}); this._width=480; this._data=[];
+      this._style=document.createElement('style'); this.shadowRoot.appendChild(this._style);
       this._root=document.createElement('ha-card'); this.shadowRoot.appendChild(this._root);
       this._id='elpris-'+Math.random().toString(36).slice(2);
     }
@@ -98,8 +99,8 @@
       const end=c.mode==='day' ? +tomorrow : now+c.hours_forward*3600000;
       const current=this._data.find(p=>p.t<=now && p.end>now);
       const visible=this._data.filter(p=>p.end>start && p.t<end);
-      const style=`<style>:host{display:block}ha-card{height:${h}px;box-sizing:border-box;overflow:hidden;padding:0}svg{display:block;width:100%;height:100%;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}.empty{height:100%;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}</style>`;
-      if (!visible.length) {this._root.innerHTML=style+'<div class="empty">Ingen prisdata i den valgte periode</div>'; return;}
+      this._style.textContent=`:host{display:block}ha-card{height:${h}px;box-sizing:border-box;overflow:hidden;padding:0;background:var(--kitchen-card-background,var(--ha-card-background,var(--card-background-color,rgba(250,246,235,.68))))}svg{display:block;width:100%;height:100%;background:transparent;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}.empty{height:100%;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}`;
+      if (!visible.length) {this._root.innerHTML='<div class="empty">Ingen prisdata i den valgte periode</div>'; return;}
       const left=c.show_yaxis?30:10, right=w-10, top=c.show_header?32:12, bottom=h-23;
       let low=Math.min(0,...visible.map(p=>p.value)), high=Math.max(...visible.map(p=>p.value));
       if (high-low<0.5) {high=low+0.5;} high+=(high-low)*0.08;
@@ -138,7 +139,7 @@
         const xx=x(now), labelX=Math.max(left,Math.min(right-21,xx-10));
         elements+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${bottom}" stroke="${esc(c.now_color)}" stroke-width="1" stroke-dasharray="3 3"/><rect x="${labelX}" y="${top-2}" width="21" height="14" rx="2" fill="${esc(c.now_color)}"/><text x="${labelX+10.5}" y="${top+8}" text-anchor="middle" fill="#171717" font-size="9">Nu</text>`;
       }
-      this._root.innerHTML=style+`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Elpriser. ${current?'Aktuelt '+esc(priceFormat(current.value,c.decimals))+' '+esc(unit):'Aktuel pris mangler'}. Blå felter viser billigste tilgængelige intervaller."><defs><linearGradient id="${this._id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y(gradientLow)}" y2="${y(gradientHigh)}">${gradient}</linearGradient></defs>${elements}</svg>`;
+      this._root.innerHTML=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Elpriser. ${current?'Aktuelt '+esc(priceFormat(current.value,c.decimals))+' '+esc(unit):'Aktuel pris mangler'}. Blå felter viser billigste tilgængelige intervaller."><defs><linearGradient id="${this._id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y(gradientLow)}" y2="${y(gradientHigh)}">${gradient}</linearGradient></defs>${elements}</svg>`;
     }
   }
   if (!customElements.get('elpris-mini-card')) customElements.define('elpris-mini-card',ElprisMiniCard);
