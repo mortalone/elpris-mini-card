@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.1.3**. Baggrundsreglen prioriteres eksplicit på kortets `ha-card` for at teste forskelle mellem browser og Kiosk Satellite. Kiosk Satellite/WebView er endnu ikke verificeret.
+Version **0.1.4**. Baggrundsreglen prioriteres eksplicit på kortets `ha-card` for at teste forskelle mellem browser og Kiosk Satellite. Kiosk Satellite/WebView er endnu ikke verificeret.
 
 ## Installation gennem HACS
 
@@ -95,7 +95,7 @@ Blå felter og streger langs tidsaksen markerer de billigste individuelle prisin
 
 Manglende fremtidige priser efterlader resten af grafen tom. Mangler det aktuelle interval, viser overskriften en streg. Grafen forbinder ikke perioder med kendte huller. I døgnvisning følges browserens lokale tidszone, inklusive 23/25-timers døgn. Brug dansk tidszone på tabletten.
 
-**Diagnose i Kiosk Satellite:** Sæt midlertidigt `debug: true` på kortet. Under grafen vises indlæst kortversion, WebView User Agent, CSS-temavariabler, beregnet `ha-card`-baggrund og SVG-baggrund. Fjern `debug: true` efter fejlsøgning.
+**Rettelse v0.1.4:** Når Kiosk Satellite ikke leverer temaets CSS-variabler, bruger kortet en tilsvarende japansk køkkengradient som fallback i stedet for hvid.\n\n**Diagnose i Kiosk Satellite:** Sæt midlertidigt `debug: true` på kortet. Under grafen vises indlæst kortversion, WebView User Agent, CSS-temavariabler, beregnet `ha-card`-baggrund og SVG-baggrund. Fjern `debug: true` efter fejlsøgning.
 
 ## Opdateringer og udvikling
 
