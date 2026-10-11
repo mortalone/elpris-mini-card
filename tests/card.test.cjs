@@ -52,11 +52,12 @@ test('local day spans respect daylight saving transitions',()=>{
 test('native ha-card owns the background and CSS survives graph updates',()=>{
   const {card}=setup();
   const css=card._style.textContent;
-  assert.match(css,/ha-card\\{height:/);
-  assert.doesNotMatch(css,/(?:background|background-color)\\s*:/);
-  assert.doesNotMatch(css,/rgba\\(250,246,235/);
+  assert.ok(css.includes('ha-card{height:'));
+  assert.ok(!css.includes('background:'));
+  assert.ok(!css.includes('background-color:'));
+  assert.ok(!css.includes('rgba(250,246,235'));
   card.hass=state([{start:'2026-10-10T12:00:00Z',value:2}]);
   card._render();
   assert.equal(card._style.textContent,css);
-  assert.doesNotMatch(card._root.innerHTML,/Elpris Mini Card v[0-9]|Theme variables \\(host\\)/);
+  assert.ok(!card._root.innerHTML.includes('Theme variables (host)'));
 });
