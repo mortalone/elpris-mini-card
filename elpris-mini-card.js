@@ -249,6 +249,34 @@
         const xx=x(d.time);
         elements+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${bottom}" stroke="var(--secondary-text-color,#aaa)" stroke-opacity=".25" stroke-dasharray="2 3"/><text x="${xx}" y="${h-6}" text-anchor="middle" fill="var(--secondary-text-color,#aaa)" font-size="9">${d.label}</text>`;
       }
+      const legend=[];
+      if(c.show_appliances) c.appliances.forEach((ap,i)=>{
+        const chosen=closestCheapWindow(this._data,now,end,ap.duration);
+        if(chosen) {
+          const a=Math.max(start,chosen.start),b=Math.min(end,chosen.end);
+          if(b>a) {
+            elements+='<rect x="'+x(a)+'" y="'+top+'" width="'+(x(b)-x(a))+'" height="'+(bottom-top)+'" fill="'+esc(ap.color)+'" opacity=".065"/>';
+            elements+='<line x1="'+x(a)+'" y1="'+(bottom-3-i*3)+'" x2="'+x(b)+'" y2="'+(bottom-3-i*3)+'" stroke="'+esc(ap.color)+'" stroke-width="3" stroke-linecap="round"/>';
+          }
+        }
+        legend.push({item:ap,time:chosen?timespan(chosen.start,chosen.end,now):'Ingen sammenhængende periode'});
+      });
+      if(c.show_charging) c.ev_schedules.forEach((ev,i)=>{
+        const chunks=(this._scheduleData[i]||[]).filter(p=>p.end>now);
+        const grouped=[];
+        for(const p of chunks) {
+          const last=grouped[grouped.length-1];
+          if(last && p.t<=last.end+1000) last.end=Math.max(last.end,p.end);
+          else grouped.push({start:p.t,end:p.end});
+        }
+        for(const p of grouped) {
+          const a=Math.max(start,p.start,now),b=Math.min(end,p.end);
+          if(b<=a) continue;
+          elements+='<rect x="'+x(a)+'" y="'+(top+3+i*8)+'" width="'+(x(b)-x(a))+'" height="5" rx="2" fill="'+esc(ev.color)+'" opacity=".86"/>';
+        }
+        const first=grouped[0];
+        legend.push({item:ev,time:first?timespan(Math.max(now,first.start),first.end,now)+(grouped.length>1?' (+'+(grouped.length-1)+')':''):'Ingen ladeplan'});
+      });
       const cheap=visible.filter(p=>p.end>now).sort((a,b)=>a.value-b.value || a.t-b.t).slice(0,c.cheap_count);
       if(c.show_cheap) for(const p of cheap) {const a=x(Math.max(start,now,p.t)), b=x(Math.min(end,p.end)); elements+=`<rect x="${a}" y="${top}" width="${Math.max(0,b-a)}" height="${bottom-top}" fill="${esc(c.cheap_color)}" opacity=".10"/><line x1="${a}" y1="${bottom}" x2="${b}" y2="${bottom}" stroke="${esc(c.cheap_color)}" stroke-width="3"/>`;}
       elements+=paths.map(d=>`<path d="${d}" fill="none" stroke="url(#${this._id})" stroke-width="${c.line_width}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
@@ -256,7 +284,14 @@
         const xx=x(now), labelX=Math.max(left,Math.min(right-21,xx-10));
         elements+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${bottom}" stroke="${esc(c.now_color)}" stroke-width="1" stroke-dasharray="3 3"/><rect x="${labelX}" y="${top-2}" width="21" height="14" rx="2" fill="${esc(c.now_color)}"/><text x="${labelX+10.5}" y="${top+8}" text-anchor="middle" fill="#171717" font-size="9">Nu</text>`;
       }
-      this._root.innerHTML=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Elpriser. ${current?'Aktuelt '+esc(priceFormat(current.value,c.decimals))+' '+esc(unit):'Aktuel pris mangler'}. Blå felter viser billigste tilgængelige intervaller."><defs><linearGradient id="${this._id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y(gradientLow)}" y2="${y(gradientHigh)}">${gradient}</linearGradient></defs>${elements}</svg>`;
+      const legendHtml=c.show_legend && legend.length ?
+        '<div class="ep-legend">'+legend.map(({item,time})=>
+          '<div class="ep-item"><span class="ep-dot" style="background:'+esc(item.color)+'"></span>'+
+          '<ha-icon class="ep-icon" icon="'+esc(item.icon)+'"></ha-icon>'+
+          '<span class="ep-name">'+esc(item.name)+'</span><span class="ep-time">'+esc(time)+'</span></div>'
+        ).join('')+'</div>' : '';
+      const svgHtml=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Elpriser. ${current?'Aktuelt '+esc(priceFormat(current.value,c.decimals))+' '+esc(unit):'Aktuel pris mangler'}. Blå felter viser billigste tilgængelige intervaller."><defs><linearGradient id="${this._id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y(gradientLow)}" y2="${y(gradientHigh)}">${gradient}</linearGradient></defs>${elements}</svg>`;
+      this._root.innerHTML=svgHtml+legendHtml;
     }
   }
   if (!customElements.get('elpris-mini-card')) customElements.define('elpris-mini-card',ElprisMiniCard);
