@@ -184,7 +184,8 @@
     }
     getCardSize() {return this._config ? Math.ceil(this._totalHeight/50) : 2;}
     getGridOptions() {return {columns:12, rows:Math.max(2,Math.ceil((this._totalHeight+8)/64)), min_rows:2};}
-    static getStubConfig() {return {entity:'sensor.ev_smart_charging_charging',attribute:'raw_two_days',height:110};}
+    static getConfigElement() {return document.createElement('elpris-mini-card-editor');}
+    static getStubConfig() {return {entity:'sensor.ev_smart_charging_charging',attribute:'raw_two_days',mode:'rolling',hours_back:2,hours_forward:'auto',height:110};}
     _getTimeWindow(now) {
       const c=this._config;
       const midnight=new Date(now); midnight.setHours(0,0,0,0);
@@ -294,6 +295,92 @@
       this._root.innerHTML=svgHtml+legendHtml;
     }
   }
+
+  class ElprisMiniCardEditor extends HTMLElement {
+    constructor() {
+      super();this.attachShadow({mode:'open'});
+      this.shadowRoot.addEventListener('change',e=>this._changed(e));
+      this.shadowRoot.addEventListener('click',e=>this._click(e));
+    }
+    setConfig(config) {this._config=JSON.parse(JSON.stringify(config||{}));this._render();}
+    set hass(hass) {this._hass=hass;}
+    _save(c) {
+      this._config=c;
+      this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:c},bubbles:true,composed:true}));
+      this._render();
+    }
+    _changed(e) {
+      const t=e.target, c=JSON.parse(JSON.stringify(this._config||{}));
+      const kind=t.dataset.kind, key=t.dataset.key;
+      if(kind) {
+        const arr=kind==='appliance'?'appliances':'ev_schedules';
+        const i=Number(t.dataset.index);
+        if(!Array.isArray(c[arr]) || !c[arr][i]) return;
+        c[arr][i][key]=key==='duration'?Number(t.value):t.value;
+      } else if(key) {
+        c[key]=t.type==='checkbox'?t.checked:t.type==='number'?Number(t.value):t.value;
+      }
+      this._save(c);
+    }
+    _click(e) {
+      const t=e.target.closest('button'),c=JSON.parse(JSON.stringify(this._config||{}));
+      if(!t) return;
+      if(t.dataset.add) {
+        const arr=t.dataset.add==='appliance'?'appliances':'ev_schedules';
+        c[arr]=Array.isArray(c[arr])?[...c[arr]]:[];
+        if(c[arr].length>=8) return;
+        c[arr].push(arr==='appliances'
+          ? {name:'Nyt apparat',icon:'mdi:dishwasher',duration:120,color:'#4caf50'}
+          : {name:'Ny bil',icon:'mdi:car-electric',color:'#2196f3',entity:'',attribute:'charging_schedule'});
+      } else if(t.dataset.remove) {
+        const arr=t.dataset.remove==='appliance'?'appliances':'ev_schedules';
+        c[arr]=(c[arr]||[]).filter((v,i)=>i!==Number(t.dataset.index));
+      } else return;
+      this._save(c);
+    }
+    _input(key,value,label,type='text',extra='') {
+      const val=value===undefined || value===null?'':String(value);
+      return '<label>'+esc(label)+'<input data-key="'+key+'" type="'+type+'" value="'+esc(val)+'" '+extra+'></label>';
+    }
+    _bool(key,label,defaultValue=true) {
+      const checked=(this._config?.[key]??defaultValue)?'checked':'';
+      return '<label class="check"><input type="checkbox" data-key="'+key+'" '+checked+'>'+esc(label)+'</label>';
+    }
+    _item(item,i,kind) {
+      const c=kind==='appliance'?normalizeItems([item],'appliance')[0]:normalizeItems([item],'ev')[0];
+      const f=(key,val,label,type='text',extra='')=>
+        '<label>'+esc(label)+'<input data-kind="'+kind+'" data-index="'+i+'" data-key="'+key+'" type="'+type+'" value="'+esc(val)+'" '+extra+'></label>';
+      return '<div class="item"><div class="item-head"><strong>'+esc(c.name)+'</strong><button type="button" data-remove="'+kind+'" data-index="'+i+'">Fjern</button></div>'+
+        f('name',c.name,'Navn')+f('icon',c.icon,'Ikon (mdi:...)')+
+        f('color',/^#[0-9a-f]{6}$/i.test(c.color)?c.color:'#4caf50','Farve','color')+
+        (kind==='appliance'?f('duration',c.duration,'Varighed i minutter','number','min="15" max="720" step="15"'):
+          f('entity',c.entity,'Sensor (entity_id)')+f('attribute',c.attribute,'Attribut'))+'</div>';
+    }
+    _render() {
+      if(!this._config) return;
+      const c=this._config, appliances=c.appliances||[], ev=c.ev_schedules||[];
+      const style='<style>:host{display:block;color:var(--primary-text-color);font:14px var(--paper-font-body1_-_font-family,Arial,sans-serif)}.wrap{display:grid;gap:12px}fieldset{border:1px solid var(--divider-color,#bbb);border-radius:10px;padding:10px;display:grid;gap:8px}legend{font-weight:600;padding:0 5px}label{display:grid;gap:3px;font-size:12px}input,select{box-sizing:border-box;width:100%;padding:7px;border:1px solid var(--divider-color,#bbb);border-radius:6px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#222)}label.check{display:flex;align-items:center;gap:9px}label.check input{width:17px;height:17px}button{background:var(--secondary-background-color,#eee);color:var(--primary-text-color,#222);border:1px solid var(--divider-color,#bbb);border-radius:7px;padding:7px 12px;cursor:pointer}.item{border:1px solid var(--divider-color,#bbb);border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.item-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}.hint{color:var(--secondary-text-color);font-size:11px}.wide{grid-column:1/-1}</style>';
+      const mode=c.mode||'day',future=c.hours_forward??6;
+      this.shadowRoot.innerHTML=style+'<div class="wrap"><fieldset><legend>Elprisgraf</legend>'+
+        this._input('entity',c.entity,'Prissensor')+this._input('attribute',c.attribute||'raw_two_days','Pris-attribut')+
+        '<label>Visning<select data-key="mode"><option value="day" '+(mode==='day'?'selected':'')+'>Hele døgnet</option><option value="rolling" '+(mode==='rolling'?'selected':'')+'>Rullende tid</option></select></label>'+
+        this._input('hours_back',c.hours_back??2,'Timer bagud','number','min="0" max="48" step="1"')+
+        this._input('hours_forward',future,'Timer frem (eller auto)')+
+        this._input('height',c.height??110,'Grafhøjde, px','number','min="80" max="500"')+
+        this._bool('show_legend','Vis oversigt under grafen')+
+        this._bool('show_cheap','Markér billigste enkeltintervaller')+'</fieldset>'+
+        '<fieldset><legend>Hvidevarer</legend>'+this._bool('show_appliances','Vis billigste sammenhængende perioder')+
+        '<div class="hint">Beregnes med de priser, der faktisk er kendt. Planlægning starter tidligst nu.</div>'+
+        appliances.map((v,i)=>this._item(v,i,'appliance')).join('')+
+        '<button type="button" data-add="appliance">+ Tilføj apparat</button></fieldset>'+
+        '<fieldset><legend>Bilers ladeplaner</legend>'+this._bool('show_charging','Vis opladning')+
+        '<div class="hint">Læs charging_schedule direkte fra en sensor pr. bil.</div>'+
+        ev.map((v,i)=>this._item(v,i,'ev')).join('')+
+        '<button type="button" data-add="ev">+ Tilføj bil</button></fieldset></div>';
+    }
+  }
+
+  if (!customElements.get('elpris-mini-card-editor')) customElements.define('elpris-mini-card-editor',ElprisMiniCardEditor);
   if (!customElements.get('elpris-mini-card')) customElements.define('elpris-mini-card',ElprisMiniCard);
   window.customCards=window.customCards || [];
   if (!window.customCards.some(c=>c.type==='elpris-mini-card')) window.customCards.push({type:'elpris-mini-card',name:'Elpris Mini Card',description:'Let elprisgraf med direkte sensordata, Nu og billigste intervaller.'});
