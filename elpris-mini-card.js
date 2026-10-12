@@ -98,25 +98,22 @@
     const b=(new Date(end).toDateString()===new Date(start).toDateString()?'':date(end)+'/')+compact(end);
     return a+'–'+b;
   }
-  function inlinePlacements(markers,left,right,top,bottom,reserved=[]) {
-    const positions=[top+2,top+20,bottom-17].filter((y,i,a)=>y>=top && y<=bottom-15 && a.findIndex(v=>Math.abs(v-y)<16)===i);
-    const occupied=[...reserved];
+  function inlinePlacements(markers,left,right,labelY) {
+    const occupied=[];
     const placed=[];
-    for (const marker of markers) {
-      const lanes=marker.kind==='ev'?positions:[...positions].reverse();
+    // The label lane is reserved above the plot. Labels never cover the price line.
+    const candidates=[...markers].sort((a,b)=>a.center-b.center);
+    for(const marker of candidates) {
       let chosen=null;
-      for (const compact of [false,true]) {
-        const width=compact?22:Math.min(130,24+Math.ceil(marker.shortTime.length*5.6));
-        if (width>right-left) continue;
-        const px=Math.max(left,Math.min(right-width,marker.center-width/2));
-        for (const py of lanes) {
-          if (occupied.some(box=>Math.abs(box.top-py)<16 && px<box.right+3 && px+width>box.left-3)) continue;
-          chosen={...marker,left:px,top:py,width,iconOnly:compact};
-          break;
-        }
-        if(chosen) break;
+      for(const iconOnly of [false,true]) {
+        const width=iconOnly?20:Math.min(138,24+Math.ceil(marker.shortTime.length*5.6));
+        if(width>right-left) continue;
+        const x=Math.max(left,Math.min(right-width,marker.center-width/2));
+        if(occupied.some(box=>x<box.right+3 && x+width>box.left-3)) continue;
+        chosen={...marker,left:x,top:labelY,width,iconOnly};
+        break;
       }
-      if(chosen) {occupied.push({left:chosen.left,right:chosen.left+chosen.width,top:chosen.top});placed.push(chosen);}
+      if(chosen) {occupied.push({left:chosen.left,right:chosen.left+chosen.width});placed.push(chosen);}
     }
     return placed;
   }
@@ -157,26 +154,30 @@
         show_appliances:config.show_appliances!==false,
         show_charging:config.show_charging!==false,
         show_legend:config.show_legend!==false,
-        legend_position:['bottom','top','inline'].includes(config.legend_position)?config.legend_position:'bottom'
+        legend_position:['bottom','top','header','inline'].includes(config.legend_position)?config.legend_position:'bottom'
       };
       if (!Array.isArray(c.color_threshold) || !c.color_threshold.length || c.color_threshold.some(p=>!Number.isFinite(Number(p.value)) || typeof p.color!=='string')) throw new Error('color_threshold kræver value og color.');
       c.color_threshold=c.color_threshold.map(p=>({value:Number(p.value),color:p.color})).sort((a,b)=>a.value-b.value);
       this._signature=null;this._scheduleSignature=null;this._state=null;this._scheduleData=[];
-      const n=this._legendCount(), extra=n && c.show_legend ? (c.legend_position==='bottom'?10+n*23+6:c.legend_position==='top'?29:0):0;
+      const n=this._legendCount(), extra=n && c.show_legend ? (c.legend_position==='bottom'?10+n*23+6:c.legend_position==='top'?29:c.legend_position==='inline'?22:0):0;
       const total=c.height+extra;
       this._totalHeight=total;
+      const reserved=c.show_legend && n && c.legend_position==='inline' ? 22 : 0;
+      const chartHeight=c.height+reserved;
       this._style.textContent=':host{display:block}ha-card{min-height:'+total+'px;box-sizing:border-box;overflow:hidden;padding:0}'+
-        'svg{display:block;width:100%;height:'+c.height+'px;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}'+
+        'svg{display:block;width:100%;height:'+chartHeight+'px;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}'+
         '.empty{min-height:'+c.height+'px;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}'+
         '.ep-legend{padding:5px 11px 7px;display:grid;gap:2px;border-top:1px solid var(--divider-color,transparent);font:11px/20px var(--paper-font-body1_-_font-family,Arial,sans-serif);color:var(--primary-text-color)}'+
         '.ep-item{display:flex;align-items:center;gap:6px;min-height:21px;white-space:nowrap;overflow:hidden}'+
         '.ep-icon{width:15px;height:15px;--mdc-icon-size:15px;flex:none}.ep-name{max-width:44%;overflow:hidden;text-overflow:ellipsis;font-weight:600}'+
         '.ep-time{margin-left:auto;color:var(--secondary-text-color);overflow:hidden;text-overflow:ellipsis}'+
         '.ep-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}'+
-        '.ep-top{display:flex;align-items:center;gap:8px;padding:4px 8px;overflow-x:auto;min-height:21px;white-space:nowrap;scrollbar-width:thin}'+
+        '.ep-top{display:flex;align-items:center;justify-content:flex-end;padding:4px 8px;overflow-x:auto;min-height:21px;white-space:nowrap;scrollbar-width:thin}'+
+        '.ep-top-items{display:inline-flex;align-items:center;gap:8px;min-width:max-content;margin-left:auto}'+
+        '.ep-header-legend{position:absolute;top:4px;right:8px;height:24px;display:flex;align-items:center;justify-content:flex-end;overflow-x:auto;scrollbar-width:thin;z-index:1}'+
         '.ep-top-item{display:inline-flex;align-items:center;gap:3px;flex:none;color:var(--secondary-text-color);font-size:10px}'+
         '.ep-top-item .ep-icon,.ep-tag .ep-icon{color:var(--ep-color);width:14px;height:14px;--mdc-icon-size:14px}'+
-        '.ep-chart{position:relative;width:100%;height:'+c.height+'px}'+
+        '.ep-chart{position:relative;width:100%;height:'+chartHeight+'px}'+
         '.ep-tag{position:absolute;display:flex;align-items:center;gap:2px;height:16px;box-sizing:border-box;padding:0 2px;border:1px solid var(--ha-card-border-color,transparent);border-radius:5px;background:var(--secondary-background-color,var(--card-background-color,transparent));color:var(--primary-text-color);font:10px/14px var(--paper-font-body1_-_font-family,Arial,sans-serif);white-space:nowrap;pointer-events:none;overflow:hidden;z-index:1}';
       if (this._hass) this.hass=this._hass; else this._render();
     }
@@ -236,12 +237,13 @@
     }
     _render() {
       const c=this._config; if (!c) return;
-      const w=this._width, h=c.height, now=Date.now();
+      const inlineBand=c.show_legend && c.legend_position==='inline' && this._legendCount()>0 ? 22 : 0;
+      const w=this._width, h=c.height+inlineBand, now=Date.now();
       const {start,end}=this._getTimeWindow(now);
       const current=this._data.find(p=>p.t<=now && p.end>now);
       const visible=this._data.filter(p=>p.end>start && p.t<end);
       if (!visible.length) {this._root.innerHTML='<div class="empty">Ingen prisdata i den valgte periode</div>'; return;}
-      const left=c.show_yaxis?30:10, right=w-10, top=c.show_header?32:12, bottom=h-23;
+      const left=c.show_yaxis?30:10, right=w-10, top=(c.show_header?32:12)+inlineBand, bottom=h-23;
       let low=Math.min(0,...visible.map(p=>p.value)), high=Math.max(...visible.map(p=>p.value));
       if (high-low<0.5) {high=low+0.5;} high+=(high-low)*0.08;
       const x=t=>left+(t-start)/(end-start)*(right-left), y=v=>bottom-(v-low)/(high-low)*(bottom-top);
