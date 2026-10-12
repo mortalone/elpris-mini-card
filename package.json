@@ -1,10 +1,10 @@
 {
   "name": "elpris-mini-card",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
     "check": "node --check elpris-mini-card.js"
   },
-  "description": "Compact Home Assistant electricity price chart using native ha-card theme styling"
+  "description": "Compact Home Assistant electricity price chart with optional appliance windows, EV charge schedules, and native theme support"
 }
