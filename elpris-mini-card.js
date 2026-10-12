@@ -1,7 +1,7 @@
-/* Elpris Mini Card v0.2.2 — MIT — no external dependencies */
+/* Elpris Mini Card v0.2.3 — MIT — no external dependencies */
 (() => {
   'use strict';
-  const VERSION = '0.2.2';
+  const VERSION = '0.2.3';
   const DEFAULT_COLORS = [
     {value: 1, color: 'cyan'}, {value: 2, color: 'green'},
     {value: 3, color: 'orange'}, {value: 4, color: 'red'},
