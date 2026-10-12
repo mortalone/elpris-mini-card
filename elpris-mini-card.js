@@ -112,27 +112,60 @@
     setConfig(config) {
       if (!config?.entity) throw new Error('Elpris Mini Card: entity skal angives.');
       if (config.mode && !['day','rolling'].includes(config.mode)) throw new Error('mode skal være day eller rolling.');
-      const c=this._config={entity:config.entity, attribute:config.attribute || 'raw_two_days', mode:config.mode || 'day',
-        height:number(config.height,110,80,500), hours_back:number(config.hours_back,1,0,48), hours_forward:config.hours_forward==='auto' ? 'auto' : number(config.hours_forward,6,1,48),
-        cheap_count:Math.floor(number(config.cheap_count,2,0,24)), show_now:config.show_now!==false, show_cheap:config.show_cheap!==false,
-        show_header:config.show_header!==false, show_yaxis:config.show_yaxis!==false, decimals:Math.floor(number(config.decimals,2,0,6)),
-        unit:config.unit, value_multiplier:number(config.value_multiplier,1,0.000001,1000000), line_width:number(config.line_width,3,1,10),
-        now_color:config.now_color || '#ff80ab', cheap_color:config.cheap_color || '#64b5f6', color_threshold:config.color_threshold || DEFAULT_COLORS};
+      const c=this._config={
+        entity:config.entity, attribute:config.attribute || 'raw_two_days', mode:config.mode || 'day',
+        height:number(config.height,110,80,500), hours_back:number(config.hours_back,1,0,48),
+        hours_forward:config.hours_forward==='auto' ? 'auto' : number(config.hours_forward,6,1,48),
+        cheap_count:Math.floor(number(config.cheap_count,2,0,24)),
+        show_now:config.show_now!==false, show_cheap:config.show_cheap!==false,
+        show_header:config.show_header!==false, show_yaxis:config.show_yaxis!==false,
+        decimals:Math.floor(number(config.decimals,2,0,6)), unit:config.unit,
+        value_multiplier:number(config.value_multiplier,1,0.000001,1000000),
+        line_width:number(config.line_width,3,1,10), now_color:config.now_color || '#ff80ab',
+        cheap_color:config.cheap_color || '#64b5f6', color_threshold:config.color_threshold || DEFAULT_COLORS,
+        appliances:normalizeItems(config.appliances,'appliance'),
+        ev_schedules:normalizeItems(config.ev_schedules,'ev'),
+        show_appliances:config.show_appliances!==false,
+        show_charging:config.show_charging!==false,
+        show_legend:config.show_legend!==false
+      };
       if (!Array.isArray(c.color_threshold) || !c.color_threshold.length || c.color_threshold.some(p=>!Number.isFinite(Number(p.value)) || typeof p.color!=='string')) throw new Error('color_threshold kræver value og color.');
       c.color_threshold=c.color_threshold.map(p=>({value:Number(p.value),color:p.color})).sort((a,b)=>a.value-b.value);
-      this._signature=null; this._state=null;
-      this._style.textContent=`:host{display:block}ha-card{height:${c.height}px;box-sizing:border-box;overflow:hidden;padding:0}svg{display:block;width:100%;height:100%;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}.empty{height:100%;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}`;
+      this._signature=null;this._scheduleSignature=null;this._state=null;this._scheduleData=[];
+      const n=this._legendCount(), total=c.height+(n ? 10+n*23+6 : 0);
+      this._totalHeight=total;
+      this._style.textContent=':host{display:block}ha-card{min-height:'+total+'px;box-sizing:border-box;overflow:hidden;padding:0}'+
+        'svg{display:block;width:100%;height:'+c.height+'px;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}'+
+        '.empty{min-height:'+c.height+'px;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}'+
+        '.ep-legend{padding:5px 11px 7px;display:grid;gap:2px;border-top:1px solid var(--divider-color,transparent);font:11px/20px var(--paper-font-body1_-_font-family,Arial,sans-serif);color:var(--primary-text-color)}'+
+        '.ep-item{display:flex;align-items:center;gap:6px;min-height:21px;white-space:nowrap;overflow:hidden}'+
+        '.ep-icon{width:15px;height:15px;--mdc-icon-size:15px;flex:none}.ep-name{max-width:44%;overflow:hidden;text-overflow:ellipsis;font-weight:600}'+
+        '.ep-time{margin-left:auto;color:var(--secondary-text-color);overflow:hidden;text-overflow:ellipsis}'+
+        '.ep-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}';
       if (this._hass) this.hass=this._hass; else this._render();
+    }
+    _legendCount() {
+      const c=this._config;
+      return c?.show_legend ? (c.show_appliances?c.appliances.length:0)+(c.show_charging?c.ev_schedules.length:0) : 0;
     }
     set hass(hass) {
       this._hass=hass; if (!this._config) return;
-      const state=hass.states[this._config.entity];
-      if (state===this._state) return;
-      this._state=state;
-      const raw=state?.attributes?.[this._config.attribute];
+      const c=this._config;
+      const state=hass.states[c.entity];
+      const raw=state?.attributes?.[c.attribute];
       const signature=JSON.stringify([raw,state?.attributes?.unit_of_measurement]);
-      if (signature===this._signature) return;
-      this._signature=signature; this._data=parse(raw,this._config.value_multiplier); this._render();
+      const plans=c.show_charging?c.ev_schedules.map(ev=>hass.states[ev.entity]?.attributes?.[ev.attribute]):[];
+      const scheduleSignature=JSON.stringify(plans);
+      if(signature===this._signature && scheduleSignature===this._scheduleSignature) return;
+      this._state=state;
+      if(signature!==this._signature) {
+        this._signature=signature;this._data=parse(raw,c.value_multiplier);
+      }
+      if(scheduleSignature!==this._scheduleSignature) {
+        this._scheduleSignature=scheduleSignature;
+        this._scheduleData=plans.map(parseCharging);
+      }
+      this._render();
     }
     connectedCallback() {
       if (typeof ResizeObserver!=='undefined') {
@@ -149,8 +182,8 @@
       this._observer?.disconnect(); clearInterval(this._timer); this._timer=null;
       document.removeEventListener('visibilitychange',this._visibility);
     }
-    getCardSize() {return this._config ? Math.ceil(this._config.height/50) : 2;}
-    getGridOptions() {return {columns:12, rows:2, min_rows:2};}
+    getCardSize() {return this._config ? Math.ceil(this._totalHeight/50) : 2;}
+    getGridOptions() {return {columns:12, rows:Math.max(2,Math.ceil((this._totalHeight+8)/64)), min_rows:2};}
     static getStubConfig() {return {entity:'sensor.ev_smart_charging_charging',attribute:'raw_two_days',height:110};}
     _getTimeWindow(now) {
       const c=this._config;
