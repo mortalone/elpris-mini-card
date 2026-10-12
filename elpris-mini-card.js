@@ -335,23 +335,30 @@
         ).join('')+'</div>' : '';
       const svgHtml=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Elpriser. ${current?'Aktuelt '+esc(priceFormat(current.value,c.decimals))+' '+esc(unit):'Aktuel pris mangler'}. Blå felter viser billigste tilgængelige intervaller."><defs><linearGradient id="${this._id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y(gradientLow)}" y2="${y(gradientHigh)}">${gradient}</linearGradient></defs>${elements}</svg>`;
       const position=c.show_legend?c.legend_position:'none';
-      const topHtml=position==='top' && legend.length?
-        '<div class="ep-top">'+legend.map(({item,time,shortTime})=>
-          '<span class="ep-top-item" title="'+esc(item.name+': '+time)+'" aria-label="'+esc(item.name+': '+time)+'" style="--ep-color:'+esc(item.color)+'">'+
-          '<ha-icon class="ep-icon" icon="'+esc(item.icon)+'"></ha-icon><span>'+esc(shortTime)+'</span></span>'
-        ).join('')+'</div>':'';
+      const chips=legend.length?legend.map(({item,time,shortTime})=>
+        '<span class="ep-top-item" title="'+esc(item.name+': '+time)+'" aria-label="'+esc(item.name+': '+time)+'" style="--ep-color:'+esc(item.color)+'">'+
+        '<ha-icon class="ep-icon" icon="'+esc(item.icon)+'"></ha-icon><span>'+esc(shortTime)+'</span></span>'
+      ).join(''):'';
+      const topHtml=position==='top' && chips?
+        '<div class="ep-top"><div class="ep-top-items">'+chips+'</div></div>':'';
+      let headerHtml='';
+      if(position==='header' && chips) {
+        // Reserve sufficient space for the current price and its unit; scroll only the chips if narrow.
+        const priceLabel=current?priceFormat(current.value,c.decimals):'—';
+        const headerLeft=c.show_header?Math.max(118,Math.min(w-40,24+priceLabel.length*13+String(unit).length*6+14)):12;
+        if(w-headerLeft>=26)
+          headerHtml='<div class="ep-header-legend" style="left:'+headerLeft+'px"><div class="ep-top-items">'+chips+'</div></div>';
+      }
       let annotations='';
-      if(position==='inline') {
-        const nowX=x(now), markX=Math.max(left,Math.min(right-21,nowX-10));
-        const reserved=c.show_now && now>=start && now<=end ? [{left:markX,right:markX+21,top:top-2}]:[];
-        const tags=inlinePlacements(markers,left,right,top,bottom,reserved);
+      if(position==='inline' && inlineBand) {
+        const tags=inlinePlacements(markers,left,right,top-inlineBand+3);
         annotations=tags.map(tag=>
           '<div class="ep-tag" title="'+esc(tag.item.name+': '+tag.fullTime)+'" aria-label="'+esc(tag.item.name+': '+tag.fullTime)+'" style="left:'+tag.left+'px;top:'+tag.top+'px;width:'+tag.width+'px;--ep-color:'+esc(tag.item.color)+'">'+
           '<ha-icon class="ep-icon" icon="'+esc(tag.item.icon)+'"></ha-icon>'+
           (tag.iconOnly?'':'<span>'+esc(tag.shortTime)+'</span>')+'</div>'
         ).join('');
       }
-      this._root.innerHTML=topHtml+'<div class="ep-chart">'+svgHtml+annotations+'</div>'+(position==='bottom'?legendHtml:'');
+      this._root.innerHTML=topHtml+'<div class="ep-chart">'+svgHtml+headerHtml+annotations+'</div>'+(position==='bottom'?legendHtml:'');
     }
   }
 
@@ -429,8 +436,9 @@
         this._bool('show_legend','Vis forklaring / labels')+
         '<label>Placering af forklaring<select data-key="legend_position">'+
         '<option value="bottom" '+((c.legend_position||'bottom')==='bottom'?'selected':'')+'>Nederst (navn, ikon og tid)</option>'+
-        '<option value="top" '+(c.legend_position==='top'?'selected':'')+'>Øverst (farvet ikon og kort tid)</option>'+
-        '<option value="inline" '+(c.legend_position==='inline'?'selected':'')+'>Ved markering (ikon og kort tid)</option>'+
+        '<option value="top" '+(c.legend_position==='top'?'selected':'')+'>Øverst, højrestillet (egen række)</option>'+
+        '<option value="header" '+(c.legend_position==='header'?'selected':'')+'>Øverst, ved pris/enhed til højre</option>'+
+        '<option value="inline" '+(c.legend_position==='inline'?'selected':'')+'>Over kurven, ud for markering</option>'+
         '</select></label>'+
         this._bool('show_cheap','Markér billigste enkeltintervaller')+'</fieldset>'+
         '<fieldset><legend>Hvidevarer</legend>'+this._bool('show_appliances','Vis billigste sammenhængende perioder')+
