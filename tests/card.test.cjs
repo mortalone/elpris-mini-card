@@ -99,6 +99,7 @@ test('auto mode does not extend horizon from stale prices',()=>{
 });
 
 test('chooses the cheapest fully covered contiguous appliance duration',()=>{
+  process.env.TZ='UTC';
   const {card}=setup('2026-10-10T12:15:00Z');
   card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:2,hours_forward:6,
     appliances:[{name:'Opvaskemaskine',icon:'mdi:dishwasher',duration:120,color:'#008877'}]});
@@ -131,6 +132,7 @@ test('does not invent a cheap period across a price gap',()=>{
   assert.ok(card._root.innerHTML.includes('Ingen sammenhængende periode'));
 });
 test('renders two independently colored EV schedules and updates on schedule change',()=>{
+  process.env.TZ='UTC';
   const {card}=setup();
   card.setConfig({entity:'sensor.price',mode:'rolling',hours_forward:6,
     ev_schedules:[
