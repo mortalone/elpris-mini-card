@@ -178,3 +178,75 @@ test('visual editor can add appliances and update per-device configuration witho
   editor._click({target:{closest:()=>({dataset:{remove:'appliance',index:'0'}})}});
   assert.equal(editor._config.appliances.length,0);
 });
+
+test('legend placement defaults to bottom and accepts top and inline modes',()=>{
+  process.env.TZ='UTC';
+  const {card}=setup('2026-10-10T12:15:00Z');
+  const prices=[
+    {start:'2026-10-10T12:00:00Z',value:4},
+    {start:'2026-10-10T13:00:00Z',value:3},
+    {start:'2026-10-10T14:00:00Z',value:1},
+    {start:'2026-10-10T15:00:00Z',value:1},
+    {start:'2026-10-10T16:00:00Z',value:4},
+    {start:'2026-10-10T17:00:00Z',value:5}
+  ];
+  const config={entity:'sensor.price',mode:'rolling',hours_back:1,hours_forward:6,
+    appliances:[{name:'Opvaskemaskine',icon:'mdi:dishwasher',color:'#008577',duration:120}]};
+  card.setConfig(config);
+  card.hass=state(prices);
+  assert.equal(card._config.legend_position,'bottom');
+  assert.ok(card._root.innerHTML.includes('class="ep-legend"'));
+  assert.ok(card._root.innerHTML.includes('Opvaskemaskine</span>'));
+  const bottomHeight=card._totalHeight;
+  card.setConfig({...config,legend_position:'top'});
+  assert.ok(card._root.innerHTML.includes('class="ep-top"'));
+  assert.ok(card._root.innerHTML.includes('class="ep-top-item"'));
+  assert.ok(card._root.innerHTML.includes('14–16'));
+  assert.ok(card._root.innerHTML.includes('style="--ep-color:#008577"'));
+  assert.ok(!card._root.innerHTML.includes('class="ep-legend"'));
+  assert.ok(!card._root.innerHTML.includes('class="ep-tag"'));
+  assert.ok(card._totalHeight<bottomHeight);
+  card.setConfig({...config,legend_position:'inline'});
+  assert.ok(card._root.innerHTML.includes('class="ep-tag"'));
+  assert.ok(card._root.innerHTML.includes('14–16'));
+  assert.ok(card._root.innerHTML.includes('mdi:dishwasher'));
+  assert.ok(!card._root.innerHTML.includes('class="ep-top"'));
+  assert.ok(!card._root.innerHTML.includes('class="ep-legend"'));
+  assert.equal(card._totalHeight,110);
+  card.setConfig({...config,legend_position:'invalid'});
+  assert.equal(card._config.legend_position,'bottom');
+  card.setConfig({...config,legend_position:'inline',show_legend:false});
+  assert.ok(!card._root.innerHTML.includes('class="ep-tag"'));
+});
+test('top legend gives EVs color-coded icons and abbreviates next-day intervals',()=>{
+  process.env.TZ='UTC';
+  const {card}=setup('2026-10-10T12:15:00Z');
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:1,hours_forward:36,legend_position:'top',
+    ev_schedules:[{name:'Citroën',entity:'sensor.car',color:'#3366cc',icon:'mdi:car-electric'}]});
+  card.hass={states:{
+    ...state([{start:'2026-10-10T12:00:00Z',value:3}]).states,
+    'sensor.car':{attributes:{charging_schedule:[
+      {start:'2026-10-11T04:00:00Z',value:1},
+      {start:'2026-10-11T08:00:00Z',value:0}
+    ]}}
+  }};
+  const html=card._root.innerHTML;
+  assert.ok(html.includes('mdi:car-electric'));
+  assert.ok(html.includes('style="--ep-color:#3366cc"'));
+  assert.ok(html.includes('11/04–08'));
+  assert.ok(html.includes('title="Citroën:'));
+});
+test('visual editor offers the three legend positions',()=>{
+  const {Editor}=setup();
+  const editor=Object.create(Editor.prototype);
+  editor._config={entity:'sensor.price',legend_position:'top',appliances:[],ev_schedules:[]};
+  let html='';
+  editor.shadowRoot={set innerHTML(v){html=v;},get innerHTML(){return html;}};
+  editor._render();
+  assert.ok(html.includes('data-key="legend_position"'));
+  assert.ok(html.includes('value="top" selected'));
+  assert.ok(html.includes('value="inline"'));
+  editor._save=function(c){this._config=c;this._render();};
+  editor._changed({target:{dataset:{key:'legend_position'},type:'select-one',value:'inline'}});
+  assert.equal(editor._config.legend_position,'inline');
+});
