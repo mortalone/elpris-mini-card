@@ -52,7 +52,7 @@ test('local day spans respect daylight saving transitions',()=>{
 test('native ha-card owns the background and CSS survives graph updates',()=>{
   const {card}=setup();
   const css=card._style.textContent;
-  assert.ok(css.includes('ha-card{height:'));
+  assert.ok(css.includes('ha-card{min-height:'));
   assert.ok(!css.includes('background:'));
   assert.ok(!css.includes('background-color:'));
   assert.ok(!css.includes('rgba(250,246,235'));
@@ -96,4 +96,63 @@ test('auto mode does not extend horizon from stale prices',()=>{
   const now=Date.parse('2026-10-10T12:15:00Z');
   assert.equal(card._getTimeWindow(now).end,now+3600000);
   assert.match(card._root.innerHTML,/Ingen prisdata/);
+});
+
+test('chooses the cheapest fully covered contiguous appliance duration',()=>{
+  const {card}=setup('2026-10-10T12:15:00Z');
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:2,hours_forward:6,
+    appliances:[{name:'Opvaskemaskine',icon:'mdi:dishwasher',duration:120,color:'#008877'}]});
+  card.hass=state([
+    {start:'2026-10-10T12:00:00Z',value:4},
+    {start:'2026-10-10T13:00:00Z',value:3},
+    {start:'2026-10-10T14:00:00Z',value:1},
+    {start:'2026-10-10T15:00:00Z',value:1},
+    {start:'2026-10-10T16:00:00Z',value:4},
+    {start:'2026-10-10T17:00:00Z',value:5}
+  ]);
+  assert.ok(card._root.innerHTML.includes('Opvaskemaskine'));
+  assert.ok(card._root.innerHTML.includes('mdi:dishwasher'));
+  assert.ok(card._root.innerHTML.includes('14:00–16:00'));
+  assert.ok(card._root.innerHTML.includes('#008877'));
+  assert.ok(card.getGridOptions().rows>2);
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_forward:6,show_legend:false,
+    appliances:[{name:'Opvaskemaskine',duration:120,color:'#008877'}]});
+  assert.ok(!card._root.innerHTML.includes('class="ep-legend"'));
+  assert.equal(card.getGridOptions().rows,2);
+});
+test('does not invent a cheap period across a price gap',()=>{
+  const {card}=setup();
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_forward:6,
+    appliances:[{name:'Tørretumbler',duration:120,color:'#00ff00'}]});
+  card.hass=state([
+    {start:'2026-10-10T12:00:00Z',end:'2026-10-10T13:00:00Z',value:1},
+    {start:'2026-10-10T15:00:00Z',end:'2026-10-10T16:00:00Z',value:1}
+  ]);
+  assert.ok(card._root.innerHTML.includes('Ingen sammenhængende periode'));
+});
+test('renders two independently colored EV schedules and updates on schedule change',()=>{
+  const {card}=setup();
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_forward:6,
+    ev_schedules:[
+      {name:'Citroën',entity:'sensor.ev_a',icon:'mdi:car-electric',color:'#0066ff'},
+      {name:'MG',entity:'sensor.ev_b',icon:'mdi:car-electric-outline',color:'#ff6600'}
+    ]});
+  const prices=[{start:'2026-10-10T12:00:00Z',value:2},{start:'2026-10-10T13:00:00Z',value:3}];
+  const states=chargingA=>({states:{
+    ...state(prices).states,
+    'sensor.ev_a':{attributes:{charging_schedule:chargingA}},
+    'sensor.ev_b':{attributes:{charging_schedule:[
+      {start:'2026-10-10T13:00:00Z',value:0},
+      {start:'2026-10-10T14:00:00Z',value:1},
+      {start:'2026-10-10T15:00:00Z',value:0}
+    ]}}
+  }});
+  card.hass=states([{start:'2026-10-10T12:00:00Z',value:1},{start:'2026-10-10T14:00:00Z',value:0}]);
+  assert.ok(card._root.innerHTML.includes('Citroën'));
+  assert.ok(card._root.innerHTML.includes('MG'));
+  assert.ok(card._root.innerHTML.includes('#0066ff'));
+  assert.ok(card._root.innerHTML.includes('#ff6600'));
+  assert.ok(card._root.innerHTML.includes('14:00–15:00'));
+  card.hass=states([{start:'2026-10-10T12:00:00Z',value:0},{start:'2026-10-10T14:00:00Z',value:0}]);
+  assert.ok(card._root.innerHTML.includes('Ingen ladeplan'));
 });
