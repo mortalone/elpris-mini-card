@@ -136,10 +136,24 @@
       elements+=`<line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" stroke="var(--secondary-text-color,#aaa)" stroke-opacity=".6"/>`;
       const tickCount=Math.max(2,Math.min(12,Math.floor((right-left)/36)));
       const tickStep=c.mode==='day'? (w<360?4:2)*3600000 : Math.max(1800000,Math.ceil((end-start)/tickCount/1800000)*1800000);
+      // In a multi-day rolling view, mark each local midnight with its date.
+      const dayBoundaries=[];
+      if(c.mode==='rolling') {
+        const d=new Date(start); d.setHours(0,0,0,0); d.setDate(d.getDate()+1);
+        while(+d<end) {
+          dayBoundaries.push({time:+d,label:`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`});
+          d.setDate(d.getDate()+1);
+        }
+      }
       for(let t=c.mode==='day'?start:Math.ceil(start/tickStep)*tickStep;t<=end;t+=tickStep) {
         const xx=x(t); const date=new Date(t);
+        if(dayBoundaries.some(d=>Math.abs(xx-x(d.time))<20)) continue;
         const label=String(date.getHours()).padStart(2,'0')+(c.mode==='rolling'?':'+String(date.getMinutes()).padStart(2,'0'):'');
         elements+=`<line x1="${xx}" y1="${bottom}" x2="${xx}" y2="${bottom+4}" stroke="var(--secondary-text-color,#aaa)"/><text x="${xx}" y="${h-6}" text-anchor="middle" fill="var(--secondary-text-color,#aaa)" font-size="9">${label}</text>`;
+      }
+      for(const d of dayBoundaries) {
+        const xx=x(d.time);
+        elements+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${bottom}" stroke="var(--secondary-text-color,#aaa)" stroke-opacity=".25" stroke-dasharray="2 3"/><text x="${xx}" y="${h-6}" text-anchor="middle" fill="var(--secondary-text-color,#aaa)" font-size="9">${d.label}</text>`;
       }
       const cheap=visible.filter(p=>p.end>now).sort((a,b)=>a.value-b.value || a.t-b.t).slice(0,c.cheap_count);
       if(c.show_cheap) for(const p of cheap) {const a=x(Math.max(start,now,p.t)), b=x(Math.min(end,p.end)); elements+=`<rect x="${a}" y="${top}" width="${Math.max(0,b-a)}" height="${bottom-top}" fill="${esc(c.cheap_color)}" opacity=".10"/><line x1="${a}" y1="${bottom}" x2="${b}" y2="${bottom}" stroke="${esc(c.cheap_color)}" stroke-width="3"/>`;}
