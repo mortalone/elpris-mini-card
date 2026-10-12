@@ -91,6 +91,35 @@
     const last=(endDate===startDate?'':endDate+' ')+hhmm(end);
     return first+'–'+last;
   }
+  function compactTimespan(start,end,now) {
+    const date=t=>{const d=new Date(t);return String(d.getDate()).padStart(2,'0');};
+    const compact=t=>{const d=new Date(t);return d.getMinutes()===0?String(d.getHours()).padStart(2,'0'):hhmm(t);};
+    const a=(new Date(start).toDateString()===new Date(now).toDateString()?'':date(start)+'/')+compact(start);
+    const b=(new Date(end).toDateString()===new Date(start).toDateString()?'':date(end)+'/')+compact(end);
+    return a+'–'+b;
+  }
+  function inlinePlacements(markers,left,right,top,bottom) {
+    const positions=[top+2,top+20,bottom-17].filter((y,i,a)=>y>=top && y<=bottom-15 && a.findIndex(v=>Math.abs(v-y)<16)===i);
+    const occupied=[];
+    const placed=[];
+    for (const marker of markers) {
+      const lanes=marker.kind==='ev'?positions:[...positions].reverse();
+      let chosen=null;
+      for (const compact of [false,true]) {
+        const width=compact?22:Math.min(130,24+Math.ceil(marker.shortTime.length*5.6));
+        if (width>right-left) continue;
+        const px=Math.max(left,Math.min(right-width,marker.center-width/2));
+        for (const py of lanes) {
+          if (occupied.some(box=>Math.abs(box.top-py)<16 && px<box.right+3 && px+width>box.left-3)) continue;
+          chosen={...marker,left:px,top:py,width,iconOnly:compact};
+          break;
+        }
+        if(chosen) break;
+      }
+      if(chosen) {occupied.push({left:chosen.left,right:chosen.left+chosen.width,top:chosen.top});placed.push(chosen);}
+    }
+    return placed;
+  }
   function normalizeItems(items,kind) {
     if(!Array.isArray(items)) return [];
     return items.slice(0,8).map((v,i)=>({
@@ -127,12 +156,14 @@
         ev_schedules:normalizeItems(config.ev_schedules,'ev'),
         show_appliances:config.show_appliances!==false,
         show_charging:config.show_charging!==false,
-        show_legend:config.show_legend!==false
+        show_legend:config.show_legend!==false,
+        legend_position:['bottom','top','inline'].includes(config.legend_position)?config.legend_position:'bottom'
       };
       if (!Array.isArray(c.color_threshold) || !c.color_threshold.length || c.color_threshold.some(p=>!Number.isFinite(Number(p.value)) || typeof p.color!=='string')) throw new Error('color_threshold kræver value og color.');
       c.color_threshold=c.color_threshold.map(p=>({value:Number(p.value),color:p.color})).sort((a,b)=>a.value-b.value);
       this._signature=null;this._scheduleSignature=null;this._state=null;this._scheduleData=[];
-      const n=this._legendCount(), total=c.height+(n ? 10+n*23+6 : 0);
+      const n=this._legendCount(), extra=n && c.show_legend ? (c.legend_position==='bottom'?10+n*23+6:c.legend_position==='top'?29:0):0;
+      const total=c.height+extra;
       this._totalHeight=total;
       this._style.textContent=':host{display:block}ha-card{min-height:'+total+'px;box-sizing:border-box;overflow:hidden;padding:0}'+
         'svg{display:block;width:100%;height:'+c.height+'px;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}'+
@@ -141,7 +172,12 @@
         '.ep-item{display:flex;align-items:center;gap:6px;min-height:21px;white-space:nowrap;overflow:hidden}'+
         '.ep-icon{width:15px;height:15px;--mdc-icon-size:15px;flex:none}.ep-name{max-width:44%;overflow:hidden;text-overflow:ellipsis;font-weight:600}'+
         '.ep-time{margin-left:auto;color:var(--secondary-text-color);overflow:hidden;text-overflow:ellipsis}'+
-        '.ep-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}';
+        '.ep-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}'+
+        '.ep-top{display:flex;align-items:center;gap:8px;padding:4px 8px;overflow-x:auto;min-height:21px;white-space:nowrap;scrollbar-width:thin}'+
+        '.ep-top-item{display:inline-flex;align-items:center;gap:3px;flex:none;color:var(--secondary-text-color);font-size:10px}'+
+        '.ep-top-item .ep-icon,.ep-tag .ep-icon{color:var(--ep-color);width:14px;height:14px;--mdc-icon-size:14px}'+
+        '.ep-chart{position:relative;width:100%;height:'+c.height+'px}'+
+        '.ep-tag{position:absolute;display:flex;align-items:center;gap:2px;height:16px;box-sizing:border-box;padding:0 2px;border:1px solid var(--ha-card-border-color,transparent);border-radius:5px;background:var(--secondary-background-color,var(--card-background-color,transparent));color:var(--primary-text-color);font:10px/14px var(--paper-font-body1_-_font-family,Arial,sans-serif);white-space:nowrap;pointer-events:none;overflow:hidden;z-index:1}';
       if (this._hass) this.hass=this._hass; else this._render();
     }
     _legendCount() {
