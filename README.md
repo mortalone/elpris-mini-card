@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.2.0**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
+Version **0.2.1**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -99,6 +99,25 @@ grid_options:
 
 Du kan skjule markeringerne separat med `show_appliances: false` og `show_charging: false`. `show_cheap: false` skjuler de tidligere blå "billigste enkeltintervaller", hvis du kun ønsker de nye sammenhængende perioder.
 
+## Placering af forklaring (legend)
+
+Fra **v0.2.1** kan placeringen vælges direkte i den visuelle korteditor under *Elprisgraf → Placering af forklaring* eller i YAML:
+
+```yaml
+show_legend: true
+legend_position: bottom   # bottom | top | inline
+```
+
+- **`bottom`** (standard, bagudkompatibel): Den hidtidige liste nedenunder grafen med farve, ikon, navn og hele tidsrummet.
+- **`top`**: En kompakt linje **over** grafen med ikon i enhedens valgte farve og forkortet tidsrum, eksempelvis `04–08`. Navnet skjules visuelt, men kan stadig læses i tooltip/tilgængelighedstekst. Hvis mange elementer er valgt, kan linjen scrolles vandret. Grafhøjden ændres ikke, men den samlede korthøjde vokser cirka 29 px.
+- **`inline`**: Små, temafarvede labels med ikon og kort tidsrum tæt på den tilsvarende pris-/ladeperiode **inde på grafen**. Grafhøjden og kortets samlede højde øges ikke. Labels placeres i ledige baner for at undgå overlap med hinanden og `Nu`-markøren. Når der ikke er plads, forkortes de til ikon alene; ved ekstrem tæthed kan en label udelades, selv om tidsperiodens farvede markering stadig vises.
+
+`show_legend: false` skjuler forklaringer og labels i **alle** tre tilstande, men beholder selve markeringerne. Visning af apparater og biler styres stadig særskilt via `show_appliances` og `show_charging`.
+
+**Datoer:** Korte tidsrum i samme døgn vises som `04–08`; minutter vises når det er nødvendigt, f.eks. `04:30–06`. Fremtidige perioder på en anden dato får dagpræfiks, f.eks. `13/04–08`, så tidsrum i morgen ikke forveksles med i dag.
+
+Det kræver ingen ekstra frontend-ressource og ingen ny backend-belastning; der genbruges samme pris- og ladeplaner. På meget små skærme anbefales `top` eller `bottom`, hvis alle tidsrum altid skal kunne læses.
+
 ## Alternativ: fast antal timer frem
 
 ```yaml
@@ -132,7 +151,8 @@ height: 110
 | `appliances` | `[]` | Liste over apparater med `name`, `duration` (min), `icon`, `color` |
 | `ev_schedules` | `[]` | Liste over biler med `name`, `entity`, `attribute`, `icon`, `color` |
 | `show_appliances` / `show_charging` | `true` / `true` | Aktiver/deaktiver apparat- og ladetidsmarkeringer |
-| `show_legend` | `true` | Vis tidsrum, navn og ikon under grafen når enheder er valgt |
+| `show_legend` | `true` | Slå forklaring/labels til eller fra i alle visninger |
+| `legend_position` | `bottom` | `bottom` (liste), `top` (kompakt), `inline` (ved markering) |
 
 ```yaml
 color_threshold:
