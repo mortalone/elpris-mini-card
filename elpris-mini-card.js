@@ -41,6 +41,67 @@
     }
     return path;
   }
+
+  const MINUTE=60000;
+  const toMinutes=(v,def=60)=>Math.max(15,Math.min(720,Math.round(number(v,def,15,720))));
+  function closestCheapWindow(prices,now,horizon,durationMinutes) {
+    const duration=toMinutes(durationMinutes)*MINUTE;
+    const slots=prices.filter(p=>p.end>now && p.t<horizon).sort((a,b)=>a.t-b.t);
+    if(!slots.length || horizon-now<duration) return null;
+    const candidates=new Set([now]);
+    const step=15*MINUTE;
+    for(let t=Math.ceil(now/step)*step;t+duration<=horizon;t+=step) candidates.add(t);
+    for(const p of slots) if(p.t>=now && p.t+duration<=horizon) candidates.add(p.t);
+    let best=null;
+    for(const start of candidates) {
+      const end=start+duration;
+      if(end>horizon) continue;
+      let cursor=start,area=0;
+      for(const p of slots) {
+        if(p.end<=cursor) continue;
+        if(p.t>cursor+1000) break; // A missing interval cannot be priced.
+        const until=Math.min(end,p.end);
+        if(until>cursor) { area+=(until-cursor)*p.value;cursor=until; }
+        if(cursor>=end-1000) break;
+      }
+      if(cursor<end-1000) continue;
+      const avg=area/duration;
+      if(!best || avg<best.average-0.0000001 || (Math.abs(avg-best.average)<0.0000001 && start<best.start))
+        best={start,end,average:avg};
+    }
+    return best;
+  }
+  function parseCharging(raw) {
+    if(!Array.isArray(raw)) return [];
+    const data=raw.map(p=>{
+      if(!p || !p.start) return null;
+      const t=new Date(p.start).getTime();
+      const val=p.value, active=val===true || val==='on' || (val!==null && val!=='' && Number(val)>0);
+      return Number.isFinite(t) ? {t,active,end:p.end?new Date(p.end).getTime():NaN} : null;
+    }).filter(Boolean).sort((a,b)=>a.t-b.t);
+    return data.filter((p,i)=>i===0 || p.t!==data[i-1].t).map((p,i,a)=>({
+      t:p.t,end:p.end>p.t?p.end:(a[i+1]?.t ?? p.t+3600000),active:p.active
+    })).filter(p=>p.active && p.end>p.t);
+  }
+  function hhmm(t) { const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+  function timespan(start,end,now) {
+    const date=d=>{const x=new Date(d);return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0');};
+    const startDate=date(start),endDate=date(end),today=date(now);
+    const first=(startDate===today?'':startDate+' ')+hhmm(start);
+    const last=(endDate===startDate?'':endDate+' ')+hhmm(end);
+    return first+'–'+last;
+  }
+  function normalizeItems(items,kind) {
+    if(!Array.isArray(items)) return [];
+    return items.slice(0,8).map((v,i)=>({
+      name:String(v?.name|| (kind==='appliance'?'Apparat ':'Bil ')+(i+1)).slice(0,48),
+      icon:String(v?.icon|| (kind==='appliance'?'mdi:clock-outline':'mdi:car-electric')).slice(0,64),
+      color:String(v?.color|| (kind==='appliance'?'#4caf50':'#2196f3')).slice(0,32),
+      ...(kind==='appliance'?{duration:toMinutes(v?.duration,120)}:{
+        entity:String(v?.entity||'').trim(),attribute:String(v?.attribute||'charging_schedule').trim()
+      })
+    }));
+  }
   class ElprisMiniCard extends HTMLElement {
     constructor() {
       super(); this.attachShadow({mode:'open'}); this._width=480; this._data=[];
