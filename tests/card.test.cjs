@@ -281,3 +281,87 @@ test('separate top and header legends are right aligned and their height is boun
   card._width=240; card._render();
   assert.ok(card._root.innerHTML.includes('class="ep-header-legend"'));
 });
+
+test('dishwasher can show time until cheapest start without changing other appliance intervals',()=>{
+  process.env.TZ='UTC';
+  const prices=[
+    {start:'2026-10-10T12:00:00Z',value:4},
+    {start:'2026-10-10T13:00:00Z',value:3},
+    {start:'2026-10-10T14:00:00Z',value:1},
+    {start:'2026-10-10T15:00:00Z',value:1},
+    {start:'2026-10-10T16:00:00Z',value:4},
+    {start:'2026-10-10T17:00:00Z',value:5}
+  ];
+  const configs={
+    entity:'sensor.price',mode:'rolling',hours_back:1,hours_forward:6,legend_position:'bottom',
+    appliances:[
+      {name:'Opvaskemaskine',duration:120,icon:'mdi:dishwasher',color:'#008577',time_display:'countdown'},
+      {name:'Tørretumbler',duration:120,icon:'mdi:tumble-dryer',color:'#d07a27',time_display:'interval'}
+    ]
+  };
+  const {card}=setup('2026-10-10T12:15:00Z');
+  card.setConfig(configs);card.hass=state(prices);
+  assert.ok(card._root.innerHTML.includes('Om 1 t 45 min'));
+  assert.ok(card._root.innerHTML.includes('14:00–16:00'));
+  assert.ok(card._root.innerHTML.includes('title="Opvaskemaskine: Om 1 t 45 min (14:00–16:00)"'));
+  card.setConfig({...configs,legend_position:'header'});
+  assert.ok(card._root.innerHTML.includes('om 1t45m'));
+  assert.ok(card._root.innerHTML.includes('14–16'));
+  card.setConfig({...configs,legend_position:'inline'});
+  assert.ok(card._root.innerHTML.includes('om 1t45m'));
+  assert.ok(card._root.innerHTML.includes('class="ep-tag"'));
+  const {card:later}=setup('2026-10-10T12:16:00Z');
+  later.setConfig(configs);later.hass=state(prices);
+  assert.ok(later._root.innerHTML.includes('Om 1 t 44 min'));
+  const {card:now}=setup('2026-10-10T14:00:00Z');
+  now.setConfig(configs);now.hass=state(prices);
+  assert.ok(now._root.innerHTML.includes('Start nu'));
+});
+test('EV schedules support an independent countdown, including currently scheduled charging',()=>{
+  process.env.TZ='UTC';
+  const {card}=setup('2026-10-10T12:15:00Z');
+  const config={entity:'sensor.price',mode:'rolling',hours_forward:6,legend_position:'top',
+    ev_schedules:[
+      {name:'Citroën',entity:'sensor.ev_a',icon:'mdi:car-electric',color:'#3366cc',time_display:'countdown'},
+      {name:'MG',entity:'sensor.ev_b',icon:'mdi:car-electric',color:'#aa5533'}
+    ]};
+  const hass={states:{
+    ...state([{start:'2026-10-10T12:00:00Z',value:3}]).states,
+    'sensor.ev_a':{attributes:{charging_schedule:[
+      {start:'2026-10-10T14:00:00Z',value:1},
+      {start:'2026-10-10T16:00:00Z',value:0}
+    ]}},
+    'sensor.ev_b':{attributes:{charging_schedule:[
+      {start:'2026-10-10T13:00:00Z',value:1},
+      {start:'2026-10-10T15:00:00Z',value:0}
+    ]}}
+  }};
+  card.setConfig(config);card.hass=hass;
+  assert.ok(card._root.innerHTML.includes('om 1t45m'));
+  assert.ok(card._root.innerHTML.includes('13–15'));
+  assert.ok(card._root.innerHTML.includes('Citroën: Om 1 t 45 min'));
+  const {card:active}=setup('2026-10-10T14:15:00Z');
+  active.setConfig(config);active.hass=hass;
+  assert.ok(active._root.innerHTML.includes('Planlagt nu'));
+});
+test('editor stores per-device countdown or interval selection',()=>{
+  const {Editor}=setup();
+  const editor=Object.create(Editor.prototype);
+  editor._config={entity:'sensor.price',appliances:[{name:'Opvaskemaskine',duration:120}],
+    ev_schedules:[{name:'MG',entity:'sensor.ev_b'}]};
+  let markup='';
+  editor.shadowRoot={set innerHTML(s){markup=s;},get innerHTML(){return markup;}};
+  editor._save=function(c){this._config=c;this._render();};
+  editor._render();
+  assert.ok(markup.includes('data-kind="appliance" data-index="0" data-key="time_display"'));
+  assert.ok(markup.includes('data-kind="ev" data-index="0" data-key="time_display"'));
+  assert.ok(markup.includes('value="interval" selected'));
+  editor._changed({target:{dataset:{kind:'appliance',index:'0',key:'time_display'},
+    type:'select-one',value:'countdown'}});
+  assert.equal(editor._config.appliances[0].time_display,'countdown');
+  assert.ok(markup.includes('value="countdown" selected'));
+  assert.equal(editor._config.ev_schedules[0].time_display,undefined);
+  editor._changed({target:{dataset:{kind:'ev',index:'0',key:'time_display'},
+    type:'select-one',value:'interval'}});
+  assert.equal(editor._config.ev_schedules[0].time_display,'interval');
+});
