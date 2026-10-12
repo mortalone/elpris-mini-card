@@ -75,7 +75,7 @@ test('automatic forward window includes tomorrow and tracks sensor updates',()=>
   assert.equal(card._getTimeWindow(now).start,now-2*3600000);
   assert.equal(card._getTimeWindow(now).end,Date.parse('2026-10-11T23:00:00Z'));
   assert.match(card._root.innerHTML,/<svg/);
-  assert.match(card._root.innerHTML,/11\\/10<\\/text>/);
+  assert.ok(card._root.innerHTML.includes('11/10</text>'));
   card.hass=state([...prices,{start:'2026-10-11T23:00:00Z',end:'2026-10-12T00:00:00Z',value:1.1}]);
   assert.equal(card._getTimeWindow(now).end,Date.parse('2026-10-12T00:00:00Z'));
 });
