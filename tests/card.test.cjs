@@ -61,3 +61,38 @@ test('native ha-card owns the background and CSS survives graph updates',()=>{
   assert.equal(card._style.textContent,css);
   assert.ok(!card._root.innerHTML.includes('Theme variables (host)'));
 });
+
+test('automatic forward window includes tomorrow and tracks sensor updates',()=>{
+  const {card}=setup('2026-10-10T12:15:00Z');
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:2,hours_forward:'auto'});
+  const now=Date.parse('2026-10-10T12:15:00Z');
+  const prices=[
+    {start:'2026-10-10T10:00:00Z',end:'2026-10-10T11:00:00Z',value:2.1},
+    {start:'2026-10-10T12:00:00Z',end:'2026-10-10T13:00:00Z',value:3.2},
+    {start:'2026-10-11T22:00:00Z',end:'2026-10-11T23:00:00Z',value:0.9}
+  ];
+  card.hass=state(prices);
+  assert.equal(card._getTimeWindow(now).start,now-2*3600000);
+  assert.equal(card._getTimeWindow(now).end,Date.parse('2026-10-11T23:00:00Z'));
+  assert.match(card._root.innerHTML,/<svg/);
+  card.hass=state([...prices,{start:'2026-10-11T23:00:00Z',end:'2026-10-12T00:00:00Z',value:1.1}]);
+  assert.equal(card._getTimeWindow(now).end,Date.parse('2026-10-12T00:00:00Z'));
+});
+test('fixed rolling horizon and calendar day behavior remain available',()=>{
+  const {card}=setup();
+  const now=Date.parse('2026-10-10T12:15:00Z');
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:3,hours_forward:6});
+  assert.equal(card._getTimeWindow(now).start,now-3*3600000);
+  assert.equal(card._getTimeWindow(now).end,now+6*3600000);
+  card.setConfig({entity:'sensor.price',mode:'day'});
+  const day=card._getTimeWindow(now);
+  assert.equal(day.end-day.start,24*3600000);
+});
+test('auto mode does not extend horizon from stale prices',()=>{
+  const {card}=setup();
+  card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:1,hours_forward:'auto'});
+  card.hass=state([{start:'2026-10-09T12:00:00Z',end:'2026-10-09T13:00:00Z',value:5}]);
+  const now=Date.parse('2026-10-10T12:15:00Z');
+  assert.equal(card._getTimeWindow(now).end,now+3600000);
+  assert.match(card._root.innerHTML,/Ingen prisdata/);
+});
