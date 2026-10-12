@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.2.1**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
+Version **0.2.2**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -101,22 +101,21 @@ Du kan skjule markeringerne separat med `show_appliances: false` og `show_chargi
 
 ## Placering af forklaring (legend)
 
-Fra **v0.2.1** kan placeringen vælges direkte i den visuelle korteditor under *Elprisgraf → Placering af forklaring* eller i YAML:
+Fra **v0.2.2** er der fire valgmuligheder i den visuelle Lovelace-editor under *Elprisgraf → Placering af forklaring*, eller i YAML:
 
 ```yaml
 show_legend: true
-legend_position: bottom   # bottom | top | inline
+legend_position: header   # bottom | top | header | inline
 ```
 
-- **`bottom`** (standard, bagudkompatibel): Den hidtidige liste nedenunder grafen med farve, ikon, navn og hele tidsrummet.
-- **`top`**: En kompakt linje **over** grafen med ikon i enhedens valgte farve og forkortet tidsrum, eksempelvis `04–08`. Navnet skjules visuelt, men kan stadig læses i tooltip/tilgængelighedstekst. Hvis mange elementer er valgt, kan linjen scrolles vandret. Grafhøjden ændres ikke, men den samlede korthøjde vokser cirka 29 px.
-- **`inline`**: Små, temafarvede labels med ikon og kort tidsrum tæt på den tilsvarende pris-/ladeperiode **inde på grafen**. Grafhøjden og kortets samlede højde øges ikke. Labels placeres i ledige baner for at undgå overlap med hinanden og `Nu`-markøren. Når der ikke er plads, forkortes de til ikon alene; ved ekstrem tæthed kan en label udelades, selv om tidsperiodens farvede markering stadig vises.
+- **`bottom`** (standard): Den eksisterende oversigt under grafen med farve, ikon, navn og fulde tider. Ændrer ikke ældre kort.
+- **`top`**: Egen, kompakt række **over grafen, højrestillet**, med farvet ikon og kort tidsrum, uden synligt navn. Den samlede korthøjde vokser cirka 29 px.
+- **`header`**: Samme kompakte, højrestillede ikoner/tider **på linje med den aktuelle pris og enheden**, så der ikke bruges en ekstra række. Pris/enhed får reserveret plads til venstre. Hvis der er mange elementer, kan ikonrækken scrolles vandret.
+- **`inline`**: Labels er **over selve prisplotområdet**, i en særskilt 22 px høj stribe *mellem prisoverskrift og kurve*, vandret centreret omkring de valgte perioder. Labels vises ikke længere oven på prislinjen. Overlap forsøges undgået, ved pladsmangel forkortes en label til kun ikonet, og enkelte labels kan udelades. Det giver kortet 22 px ekstra højde, så kurvens eksisterende højde bibeholdes.
 
-`show_legend: false` skjuler forklaringer og labels i **alle** tre tilstande, men beholder selve markeringerne. Visning af apparater og biler styres stadig særskilt via `show_appliances` og `show_charging`.
+Navn og fuldt tidsrum gemmes i tooltip og tilgængelighedstekst for de kompakte visninger. Eksempelvis vises `04–08` for hele timer, og `04:30–06` hvis minutter er nødvendige. Tidspunkter i morgen får datopræfiks, eksempelvis `13/04–08`.
 
-**Datoer:** Korte tidsrum i samme døgn vises som `04–08`; minutter vises når det er nødvendigt, f.eks. `04:30–06`. Fremtidige perioder på en anden dato får dagpræfiks, f.eks. `13/04–08`, så tidsrum i morgen ikke forveksles med i dag.
-
-Det kræver ingen ekstra frontend-ressource og ingen ny backend-belastning; der genbruges samme pris- og ladeplaner. På meget små skærme anbefales `top` eller `bottom`, hvis alle tidsrum altid skal kunne læses.
+`show_legend: false` skjuler alle forklaringer, men ikke selve farvemarkeringerne. `show_appliances` og `show_charging` fungerer fortsat uafhængigt af legend-placeringen. Der er ingen nye eksterne filer, WebSocket-abonnementer eller historikforespørgsler.
 
 ## Alternativ: fast antal timer frem
 
@@ -152,7 +151,7 @@ height: 110
 | `ev_schedules` | `[]` | Liste over biler med `name`, `entity`, `attribute`, `icon`, `color` |
 | `show_appliances` / `show_charging` | `true` / `true` | Aktiver/deaktiver apparat- og ladetidsmarkeringer |
 | `show_legend` | `true` | Slå forklaring/labels til eller fra i alle visninger |
-| `legend_position` | `bottom` | `bottom` (liste), `top` (kompakt), `inline` (ved markering) |
+| `legend_position` | `bottom` | `bottom` (nederst), `top` (øverst/højre), `header` (ved prisen/højre), `inline` (over kurven ved markeringen) |
 
 ```yaml
 color_threshold:
