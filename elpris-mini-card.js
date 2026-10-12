@@ -424,7 +424,12 @@
         this._input('hours_back',c.hours_back??2,'Timer bagud','number','min="0" max="48" step="1"')+
         this._input('hours_forward',future,'Timer frem (eller auto)')+
         this._input('height',c.height??110,'Grafhøjde, px','number','min="80" max="500"')+
-        this._bool('show_legend','Vis oversigt under grafen')+
+        this._bool('show_legend','Vis forklaring / labels')+
+        '<label>Placering af forklaring<select data-key="legend_position">'+
+        '<option value="bottom" '+((c.legend_position||'bottom')==='bottom'?'selected':'')+'>Nederst (navn, ikon og tid)</option>'+
+        '<option value="top" '+(c.legend_position==='top'?'selected':'')+'>Øverst (farvet ikon og kort tid)</option>'+
+        '<option value="inline" '+(c.legend_position==='inline'?'selected':'')+'>Ved markering (ikon og kort tid)</option>'+
+        '</select></label>'+
         this._bool('show_cheap','Markér billigste enkeltintervaller')+'</fieldset>'+
         '<fieldset><legend>Hvidevarer</legend>'+this._bool('show_appliances','Vis billigste sammenhængende perioder')+
         '<div class="hint">Beregnes med de priser, der faktisk er kendt. Planlægning starter tidligst nu.</div>'+
