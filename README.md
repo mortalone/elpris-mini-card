@@ -50,9 +50,9 @@ Der kræves ingen ændring i integrationen eller Pyscript. Kortet læser attribu
 
 ## Planlæg hvidevarer og se ladeplaner — uden ApexCharts eller Pyscript
 
-Du kan konfigurere dette direkte i **kortets visuelle Lovelace-editor** (Rediger kort → Elpris Mini Card). Tilføj apparater med navn, ikon, farve og køretid i minutter. Tilføj en bil med navn, ikon, farve og en sensor med attributten \`charging_schedule\`. Alle indstillinger kan også ændres i YAML.
+Du kan konfigurere dette direkte i **kortets visuelle Lovelace-editor** (Rediger kort → Elpris Mini Card). Tilføj apparater med navn, ikon, farve og køretid i minutter. Tilføj en bil med navn, ikon, farve og en sensor med attributten `charging_schedule`. Alle indstillinger kan også ændres i YAML.
 
-\`\`\`yaml
+```yaml
 type: custom:elpris-mini-card
 entity: sensor.ev_smart_charging_charging
 attribute: raw_two_days
@@ -87,17 +87,17 @@ ev_schedules:
 grid_options:
   columns: 12
   rows: auto
-\`\`\`
+```
 
-**Vigtigt:** Kontrollér, at bilernes sensorer faktisk repræsenterer hver sin bil. Navnene ovenfor er eksempler fra opsætningen og kan byttes. De skal have \`charging_schedule\`-attributten. Kortet behandler intervaller med \`value > 0\` som aktiv opladning og \`value = 0\` som inaktiv. \`end\` anvendes, hvis den er angivet; ellers bruges næste tidsstempel, eller én time for det sidste interval.
+**Vigtigt:** Kontrollér, at bilernes sensorer faktisk repræsenterer hver sin bil. Navnene ovenfor er eksempler fra opsætningen og kan byttes. De skal have `charging_schedule`-attributten. Kortet behandler intervaller med `value > 0` som aktiv opladning og `value = 0` som inaktiv. `end` anvendes, hvis den er angivet; ellers bruges næste tidsstempel, eller én time for det sidste interval.
 
 **Billigste kørselsvindue:** Kortet beregner lavest tidsvægtet gennemsnitspris for en *sammenhængende* periode af den valgte varighed. Det prøver starttidspunkter hvert kvarter plus kendte tarifskift. Tidsrummet starter tidligst nu og skal have kendte priser for hele perioden. Det viser vinduet på grafen med en diskret farvet markering og angiver klokkeslæt, navn og ikon i oversigten. Hvis ikke nok sammenhængende fremtidsdata findes, skriver det "Ingen sammenhængende periode". Det starter ikke selv apparater og reserverer ikke strømkapacitet, så flere apparater kan godt få samme billigste tidsrum.
 
 **EV-ladeplaner:** De to bilers sensorer læses separat. Den farvede markering viser *allerede planlagt* opladning, ikke et nyt optimeringsforslag til bilen. Opdateringer af ladeplaner gentegner kortet. Ingen nye WebSocket-abonnementer bruges.
 
-**Performance og layout:** Alle beregninger foregår lokalt ud fra de data, der allerede findes i Home Assistant. Der laves ingen historikforespørgsler eller Pyscript-kørsler. Maks. 8 apparater og 8 ladeplaner indlæses. Oversigten udvider automatisk kortets højde (ét kompakt tekstfelt pr. enhed); slå \`show_legend: false\` fra for samme højde som tidligere.
+**Performance og layout:** Alle beregninger foregår lokalt ud fra de data, der allerede findes i Home Assistant. Der laves ingen historikforespørgsler eller Pyscript-kørsler. Maks. 8 apparater og 8 ladeplaner indlæses. Oversigten udvider automatisk kortets højde (ét kompakt tekstfelt pr. enhed); slå `show_legend: false` fra for samme højde som tidligere.
 
-Du kan skjule markeringerne separat med \`show_appliances: false\` og \`show_charging: false\`. \`show_cheap: false\` skjuler de tidligere blå "billigste enkeltintervaller", hvis du kun ønsker de nye sammenhængende perioder.
+Du kan skjule markeringerne separat med `show_appliances: false` og `show_charging: false`. `show_cheap: false` skjuler de tidligere blå "billigste enkeltintervaller", hvis du kun ønsker de nye sammenhængende perioder.
 
 ## Alternativ: fast antal timer frem
 
