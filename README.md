@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.2.2**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
+Version **0.2.3**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -99,6 +99,37 @@ grid_options:
 
 Du kan skjule markeringerne separat med `show_appliances: false` og `show_charging: false`. `show_cheap: false` skjuler de tidligere blå "billigste enkeltintervaller", hvis du kun ønsker de nye sammenhængende perioder.
 
+## Valg mellem tidsinterval og tid til start
+
+Fra **v0.2.3** kan **hver enkelt hvidevare eller bil** selv vælge, hvordan dens tidspunkt vises i legend. Indstillingen findes i den visuelle Lovelace-korteditor under den enkelte enhed som **Vis tidsangivelse**, eller via `time_display` i YAML.
+
+```yaml
+appliances:
+  - name: Opvaskemaskine
+    icon: mdi:dishwasher
+    duration: 120
+    color: "#008577"
+    time_display: countdown  # Viser fx "Om 2 t 35 min"
+  - name: Tørretumbler
+    icon: mdi:tumble-dryer
+    duration: 90
+    color: "#d07a27"
+    time_display: interval   # Viser fx "04:00–05:30"
+ev_schedules:
+  - name: Citroën
+    entity: sensor.ev_smart_charging_charging
+    icon: mdi:car-electric
+    color: "#306fd1"
+    time_display: interval
+```
+
+- **`interval` (standard):** Vis faktisk klokkeslætsinterval i legend. Allerede oprettede kort ændrer sig ikke.
+- **`countdown`:** Vis hvor længe der er til start. I bundvisningen vises eksempelvis `Om 2 t 35 min`; i kompakte top/header/inline-visninger `om 2t35m`. Ved start vises **Start nu** for det beregnede hvidevareforslag og **Planlagt nu** for bilens registrerede ladeplan.
+- Begge visninger bevarer **det præcise klokkeslætsinterval i tooltip**.
+- Nedtællingen opdateres af kortets **eksisterende minut-timer** og kræver ingen nye entiteter, API-forespørgsler eller baggrundsopgaver.
+
+**Vigtigt ved udskudt start:** Opvaskemaskinens tidspunkt er en *anbefaling beregnet ud fra aktuelt kendte priser*, ikke en låst reservation. Det billigste tidspunkt kan ændre sig, når nuværende tidspunkt går frem, eller der kommer nye priser. Når du har programmeret maskinens udskudte start, følger kortet ikke maskinens faktisk valgte starttid; det viser fortsat det billigste beregnede tidspunkt. Beregningen foretager ingen handling på opvaskemaskinen.
+
 ## Placering af forklaring (legend)
 
 Fra **v0.2.2** er der fire valgmuligheder i den visuelle Lovelace-editor under *Elprisgraf → Placering af forklaring*, eller i YAML:
@@ -151,6 +182,7 @@ height: 110
 | `ev_schedules` | `[]` | Liste over biler med `name`, `entity`, `attribute`, `icon`, `color` |
 | `show_appliances` / `show_charging` | `true` / `true` | Aktiver/deaktiver apparat- og ladetidsmarkeringer |
 | `show_legend` | `true` | Slå forklaring/labels til eller fra i alle visninger |
+| `time_display` (pr. apparat/bil) | `interval` | `interval` = klokkeslæt; `countdown` = tid indtil start (påvirker kun legend) |
 | `legend_position` | `bottom` | `bottom` (nederst), `top` (øverst/højre), `header` (ved prisen/højre), `inline` (over kurven ved markeringen) |
 
 ```yaml
