@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.1.7**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
+Version **0.2.0**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -48,6 +48,57 @@ Der kræves ingen ændring i integrationen eller Pyscript. Kortet læser attribu
 
 **Enheder:** Kortet omregner ikke priser som standard. Det bruger sensorens `unit_of_measurement`. Kontrollér, at denne enhed også gælder attributtens `value`: din oprindelige YAML skrev øre/kWh, men tærsklerne 1–6 kan være kr/kWh. Hvis råværdierne er kroner, kan du skrive `unit: kr/kWh`. At skrive `unit` ændrer kun teksten. Ønsker du øre, brug `value_multiplier: 100`, `unit: øre/kWh`, og tilsvarende tærskler 100–600.
 
+## Planlæg hvidevarer og se ladeplaner — uden ApexCharts eller Pyscript
+
+Du kan konfigurere dette direkte i **kortets visuelle Lovelace-editor** (Rediger kort → Elpris Mini Card). Tilføj apparater med navn, ikon, farve og køretid i minutter. Tilføj en bil med navn, ikon, farve og en sensor med attributten \`charging_schedule\`. Alle indstillinger kan også ændres i YAML.
+
+\`\`\`yaml
+type: custom:elpris-mini-card
+entity: sensor.ev_smart_charging_charging
+attribute: raw_two_days
+mode: rolling
+hours_back: 2
+hours_forward: auto
+height: 110
+unit: kr/kWh
+show_appliances: true
+show_charging: true
+show_legend: true
+appliances:
+  - name: Opvaskemaskine
+    icon: mdi:dishwasher
+    duration: 120
+    color: "#008577"
+  - name: Tørretumbler
+    icon: mdi:tumble-dryer
+    duration: 90
+    color: "#d07a27"
+ev_schedules:
+  - name: Citroën
+    icon: mdi:car-electric
+    color: "#306fd1"
+    entity: sensor.ev_smart_charging_charging
+    attribute: charging_schedule
+  - name: MG
+    icon: mdi:car-electric-outline
+    color: "#9454b8"
+    entity: sensor.ev_smart_charging_charging_2
+    attribute: charging_schedule
+grid_options:
+  columns: 12
+  rows: auto
+\`\`\`
+
+**Vigtigt:** Kontrollér, at bilernes sensorer faktisk repræsenterer hver sin bil. Navnene ovenfor er eksempler fra opsætningen og kan byttes. De skal have \`charging_schedule\`-attributten. Kortet behandler intervaller med \`value > 0\` som aktiv opladning og \`value = 0\` som inaktiv. \`end\` anvendes, hvis den er angivet; ellers bruges næste tidsstempel, eller én time for det sidste interval.
+
+**Billigste kørselsvindue:** Kortet beregner lavest tidsvægtet gennemsnitspris for en *sammenhængende* periode af den valgte varighed. Det prøver starttidspunkter hvert kvarter plus kendte tarifskift. Tidsrummet starter tidligst nu og skal have kendte priser for hele perioden. Det viser vinduet på grafen med en diskret farvet markering og angiver klokkeslæt, navn og ikon i oversigten. Hvis ikke nok sammenhængende fremtidsdata findes, skriver det "Ingen sammenhængende periode". Det starter ikke selv apparater og reserverer ikke strømkapacitet, så flere apparater kan godt få samme billigste tidsrum.
+
+**EV-ladeplaner:** De to bilers sensorer læses separat. Den farvede markering viser *allerede planlagt* opladning, ikke et nyt optimeringsforslag til bilen. Opdateringer af ladeplaner gentegner kortet. Ingen nye WebSocket-abonnementer bruges.
+
+**Performance og layout:** Alle beregninger foregår lokalt ud fra de data, der allerede findes i Home Assistant. Der laves ingen historikforespørgsler eller Pyscript-kørsler. Maks. 8 apparater og 8 ladeplaner indlæses. Oversigten udvider automatisk kortets højde (ét kompakt tekstfelt pr. enhed); slå \`show_legend: false\` fra for samme højde som tidligere.
+
+Du kan skjule markeringerne separat med \`show_appliances: false\` og \`show_charging: false\`. \`show_cheap: false\` skjuler de tidligere blå "billigste enkeltintervaller", hvis du kun ønsker de nye sammenhængende perioder.
+
 ## Alternativ: fast antal timer frem
 
 ```yaml
@@ -78,6 +129,10 @@ height: 110
 | `now_color` | `#ff80ab` | Nu-markør |
 | `cheap_color` | `#64b5f6` | Billige intervaller |
 | `color_threshold` | nedenfor | Farvegrænser i den viste prisenhed |
+| `appliances` | `[]` | Liste over apparater med `name`, `duration` (min), `icon`, `color` |
+| `ev_schedules` | `[]` | Liste over biler med `name`, `entity`, `attribute`, `icon`, `color` |
+| `show_appliances` / `show_charging` | `true` / `true` | Aktiver/deaktiver apparat- og ladetidsmarkeringer |
+| `show_legend` | `true` | Vis tidsrum, navn og ikon under grafen når enheder er valgt |
 
 ```yaml
 color_threshold:
@@ -107,7 +162,7 @@ I døgnvisning og ved et fast fremadrettet vindue efterlader manglende fremtidig
 
 Udgivelse sker automatisk, når versionsnummeret i `package.json` opdateres på `main`. GitHub Actions kører syntakscheck og tests før udgivelse som GitHub Release. HACS kan derefter installere den nye version.
 
-Kortet gentegner kun ved nye prisdata/enhed, ændret bredde og en gang i minuttet for Nu-markøren. Timere og størrelsesobserver fjernes, når kortet forlader siden. Det opretter ingen ekstra abonnementer eller historikforespørgsler; det reducerer ikke Home Assistants almindelige WebSocket-trafik.
+Kortet gentegner ved nye prisdata, ændrede EV-ladeplaner, ændret bredde og en gang i minuttet for Nu-markøren. Timere og størrelsesobserver fjernes, når kortet forlader siden. Det opretter ingen ekstra abonnementer eller historikforespørgsler; det reducerer ikke Home Assistants almindelige WebSocket-trafik.
 
 ```sh
 npm run check
