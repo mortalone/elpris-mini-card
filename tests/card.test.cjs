@@ -213,7 +213,18 @@ test('legend placement defaults to bottom and accepts top and inline modes',()=>
   assert.ok(card._root.innerHTML.includes('mdi:dishwasher'));
   assert.ok(!card._root.innerHTML.includes('class="ep-top"'));
   assert.ok(!card._root.innerHTML.includes('class="ep-legend"'));
+  assert.equal(card._totalHeight,132);
+  assert.ok(card._root.innerHTML.includes('height="132"') || card._root.innerHTML.includes('viewBox="0 0 480 132"'));
+  // The annotation is in its own 22px strip ABOVE the plotting area (top=54).
+  const markerStyle=card._root.innerHTML.match(/class="ep-tag"[^>]*style="[^"]*top:([\d.]+)px/);
+  assert.ok(markerStyle);
+  assert.ok(Number(markerStyle[1])<54 && Number(markerStyle[1])+16<=54);
+  card.setConfig({...config,legend_position:'header'});
   assert.equal(card._totalHeight,110);
+  assert.ok(card._root.innerHTML.includes('class="ep-header-legend"'));
+  assert.ok(card._root.innerHTML.includes('class="ep-top-items"'));
+  assert.ok(!card._root.innerHTML.includes('class="ep-tag"'));
+  assert.ok(!card._root.innerHTML.includes('class="ep-legend"'));
   card.setConfig({...config,legend_position:'invalid'});
   assert.equal(card._config.legend_position,'bottom');
   card.setConfig({...config,legend_position:'inline',show_legend:false});
@@ -237,7 +248,7 @@ test('top legend gives EVs color-coded icons and abbreviates next-day intervals'
   assert.ok(html.includes('11/04–08'));
   assert.ok(html.includes('title="Citroën:'));
 });
-test('visual editor offers the three legend positions',()=>{
+test('visual editor offers four legend positions',()=>{
   const {Editor}=setup();
   const editor=Object.create(Editor.prototype);
   editor._config={entity:'sensor.price',legend_position:'top',appliances:[],ev_schedules:[]};
@@ -247,7 +258,26 @@ test('visual editor offers the three legend positions',()=>{
   assert.ok(html.includes('data-key="legend_position"'));
   assert.ok(html.includes('value="top" selected'));
   assert.ok(html.includes('value="inline"'));
+  assert.ok(html.includes('value="header"'));
   editor._save=function(c){this._config=c;this._render();};
   editor._changed({target:{dataset:{key:'legend_position'},type:'select-one',value:'inline'}});
   assert.equal(editor._config.legend_position,'inline');
+});
+
+test('separate top and header legends are right aligned and their height is bounded',()=>{
+  process.env.TZ='UTC';
+  const {card}=setup('2026-10-10T12:15:00Z');
+  const config={entity:'sensor.price',legend_position:'top',mode:'rolling',hours_forward:6,
+    appliances:[{name:'Vaskemaskine',icon:'mdi:washing-machine',duration:60,color:'#2266bb'}]};
+  card.setConfig(config);
+  card.hass=state([{start:'2026-10-10T12:00:00Z',value:4},{start:'2026-10-10T13:00:00Z',value:1},{start:'2026-10-10T14:00:00Z',value:4}]);
+  assert.ok(card._style.textContent.includes('justify-content:flex-end'));
+  assert.ok(card._root.innerHTML.includes('class="ep-top"'));
+  assert.equal(card._totalHeight,139);
+  card.setConfig({...config,legend_position:'header'});
+  assert.ok(card._root.innerHTML.includes('class="ep-header-legend"'));
+  assert.ok(card._root.innerHTML.includes('style="left:'));
+  assert.equal(card._totalHeight,110);
+  card._width=240; card._render();
+  assert.ok(card._root.innerHTML.includes('class="ep-header-legend"'));
 });
