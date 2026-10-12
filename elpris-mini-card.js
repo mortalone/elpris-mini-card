@@ -98,9 +98,9 @@
     const b=(new Date(end).toDateString()===new Date(start).toDateString()?'':date(end)+'/')+compact(end);
     return a+'–'+b;
   }
-  function inlinePlacements(markers,left,right,top,bottom) {
+  function inlinePlacements(markers,left,right,top,bottom,reserved=[]) {
     const positions=[top+2,top+20,bottom-17].filter((y,i,a)=>y>=top && y<=bottom-15 && a.findIndex(v=>Math.abs(v-y)<16)===i);
-    const occupied=[];
+    const occupied=[...reserved];
     const placed=[];
     for (const marker of markers) {
       const lanes=marker.kind==='ev'?positions:[...positions].reverse();
@@ -287,6 +287,7 @@
         elements+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${bottom}" stroke="var(--secondary-text-color,#aaa)" stroke-opacity=".25" stroke-dasharray="2 3"/><text x="${xx}" y="${h-6}" text-anchor="middle" fill="var(--secondary-text-color,#aaa)" font-size="9">${d.label}</text>`;
       }
       const legend=[];
+      const markers=[];
       if(c.show_appliances) c.appliances.forEach((ap,i)=>{
         const chosen=closestCheapWindow(this._data,now,end,ap.duration);
         if(chosen) {
@@ -294,9 +295,10 @@
           if(b>a) {
             elements+='<rect x="'+x(a)+'" y="'+top+'" width="'+(x(b)-x(a))+'" height="'+(bottom-top)+'" fill="'+esc(ap.color)+'" opacity=".065"/>';
             elements+='<line x1="'+x(a)+'" y1="'+(bottom-3-i*3)+'" x2="'+x(b)+'" y2="'+(bottom-3-i*3)+'" stroke="'+esc(ap.color)+'" stroke-width="3" stroke-linecap="round"/>';
+            markers.push({item:ap,kind:'appliance',center:(x(a)+x(b))/2,shortTime:compactTimespan(chosen.start,chosen.end,now),fullTime:timespan(chosen.start,chosen.end,now)});
           }
         }
-        legend.push({item:ap,time:chosen?timespan(chosen.start,chosen.end,now):'Ingen sammenhængende periode'});
+        legend.push({item:ap,time:chosen?timespan(chosen.start,chosen.end,now):'Ingen sammenhængende periode',shortTime:chosen?compactTimespan(chosen.start,chosen.end,now):'—'});
       });
       if(c.show_charging) c.ev_schedules.forEach((ev,i)=>{
         const chunks=(this._scheduleData[i]||[]).filter(p=>p.end>now);
@@ -310,9 +312,11 @@
           const a=Math.max(start,p.start,now),b=Math.min(end,p.end);
           if(b<=a) continue;
           elements+='<rect x="'+x(a)+'" y="'+(top+3+i*8)+'" width="'+(x(b)-x(a))+'" height="5" rx="2" fill="'+esc(ev.color)+'" opacity=".86"/>';
+          markers.push({item:ev,kind:'ev',center:(x(a)+x(b))/2,shortTime:compactTimespan(p.start,p.end,now),fullTime:timespan(p.start,p.end,now)});
         }
         const first=grouped[0];
-        legend.push({item:ev,time:first?timespan(Math.max(now,first.start),first.end,now)+(grouped.length>1?' (+'+(grouped.length-1)+')':''):'Ingen ladeplan'});
+        legend.push({item:ev,time:first?timespan(Math.max(now,first.start),first.end,now)+(grouped.length>1?' (+'+(grouped.length-1)+')':''):'Ingen ladeplan',
+          shortTime:first?compactTimespan(Math.max(now,first.start),first.end,now)+(grouped.length>1?' +'+(grouped.length-1):''):'—'});
       });
       const cheap=visible.filter(p=>p.end>now).sort((a,b)=>a.value-b.value || a.t-b.t).slice(0,c.cheap_count);
       if(c.show_cheap) for(const p of cheap) {const a=x(Math.max(start,now,p.t)), b=x(Math.min(end,p.end)); elements+=`<rect x="${a}" y="${top}" width="${Math.max(0,b-a)}" height="${bottom-top}" fill="${esc(c.cheap_color)}" opacity=".10"/><line x1="${a}" y1="${bottom}" x2="${b}" y2="${bottom}" stroke="${esc(c.cheap_color)}" stroke-width="3"/>`;}
@@ -328,7 +332,24 @@
           '<span class="ep-name">'+esc(item.name)+'</span><span class="ep-time">'+esc(time)+'</span></div>'
         ).join('')+'</div>' : '';
       const svgHtml=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Elpriser. ${current?'Aktuelt '+esc(priceFormat(current.value,c.decimals))+' '+esc(unit):'Aktuel pris mangler'}. Blå felter viser billigste tilgængelige intervaller."><defs><linearGradient id="${this._id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y(gradientLow)}" y2="${y(gradientHigh)}">${gradient}</linearGradient></defs>${elements}</svg>`;
-      this._root.innerHTML=svgHtml+legendHtml;
+      const position=c.show_legend?c.legend_position:'none';
+      const topHtml=position==='top' && legend.length?
+        '<div class="ep-top">'+legend.map(({item,time,shortTime})=>
+          '<span class="ep-top-item" title="'+esc(item.name+': '+time)+'" aria-label="'+esc(item.name+': '+time)+'" style="--ep-color:'+esc(item.color)+'">'+
+          '<ha-icon class="ep-icon" icon="'+esc(item.icon)+'"></ha-icon><span>'+esc(shortTime)+'</span></span>'
+        ).join('')+'</div>':'';
+      let annotations='';
+      if(position==='inline') {
+        const nowX=x(now), markX=Math.max(left,Math.min(right-21,nowX-10));
+        const reserved=c.show_now && now>=start && now<=end ? [{left:markX,right:markX+21,top:top-2}]:[];
+        const tags=inlinePlacements(markers,left,right,top,bottom,reserved);
+        annotations=tags.map(tag=>
+          '<div class="ep-tag" title="'+esc(tag.item.name+': '+tag.fullTime)+'" aria-label="'+esc(tag.item.name+': '+tag.fullTime)+'" style="left:'+tag.left+'px;top:'+tag.top+'px;width:'+tag.width+'px;--ep-color:'+esc(tag.item.color)+'">'+
+          '<ha-icon class="ep-icon" icon="'+esc(tag.item.icon)+'"></ha-icon>'+
+          (tag.iconOnly?'':'<span>'+esc(tag.shortTime)+'</span>')+'</div>'
+        ).join('');
+      }
+      this._root.innerHTML=topHtml+'<div class="ep-chart">'+svgHtml+annotations+'</div>'+(position==='bottom'?legendHtml:'');
     }
   }
 
