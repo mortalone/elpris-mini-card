@@ -3,15 +3,15 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 function setup(now='2026-10-10T12:15:00Z') {
-  let Card, timers=0;
+  let Card, Editor, timers=0;
   class Clock extends Date {constructor(...args){super(...(args.length?args:[now]));} static now(){return +new Date(now);}}
   const context={Date:Clock,HTMLElement:class{attachShadow(){this.shadowRoot={appendChild(){}};}},
     document:{createElement:()=>({innerHTML:''}),addEventListener(){},removeEventListener(){},hidden:false},
-    customElements:{get(){},define(n,c){Card=c;}},window:{},console:{info(){}},
+    customElements:{get(){},define(n,c){if(n==='elpris-mini-card') Card=c; if(n==='elpris-mini-card-editor') Editor=c;}},window:{},console:{info(){}},
     setInterval(){timers++;return timers;},clearInterval(){timers--;}};
   vm.runInNewContext(fs.readFileSync('elpris-mini-card.js','utf8'),context);
   const card=new Card(); card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:1,hours_forward:6});
-  return {card,timers:()=>timers};
+  return {card,Editor,timers:()=>timers};
 }
 const state=raw=>({states:{'sensor.price':{attributes:{raw_two_days:raw,unit_of_measurement:'kr/kWh'}}}});
 test('sorts raw data, handles duplicate starts, negative prices and missing values',()=>{
@@ -157,4 +157,24 @@ test('renders two independently colored EV schedules and updates on schedule cha
   assert.ok(card._root.innerHTML.includes('14:00–15:00'));
   card.hass=states([{start:'2026-10-10T12:00:00Z',value:0},{start:'2026-10-10T14:00:00Z',value:0}]);
   assert.ok(card._root.innerHTML.includes('Ingen ladeplan'));
+});
+
+test('visual editor can add appliances and update per-device configuration without external JS',()=>{
+  const {Editor}=setup();
+  assert.equal(typeof Editor,'function');
+  const editor=Object.create(Editor.prototype);
+  editor._config={entity:'sensor.price',appliances:[],ev_schedules:[]};
+  editor._save=function(c){this._config=c;};
+  editor._click({target:{closest:()=>({dataset:{add:'appliance'}})}});
+  assert.equal(editor._config.appliances.length,1);
+  editor._changed({target:{dataset:{kind:'appliance',index:'0',key:'duration'},value:'180'}});
+  assert.equal(editor._config.appliances[0].duration,180);
+  editor._click({target:{closest:()=>({dataset:{add:'ev'}})}});
+  assert.equal(editor._config.ev_schedules[0].attribute,'charging_schedule');
+  editor._changed({target:{dataset:{kind:'ev',index:'0',key:'entity'},value:'sensor.ev_b'}});
+  assert.equal(editor._config.ev_schedules[0].entity,'sensor.ev_b');
+  editor._changed({target:{dataset:{key:'show_legend'},type:'checkbox',checked:false}});
+  assert.equal(editor._config.show_legend,false);
+  editor._click({target:{closest:()=>({dataset:{remove:'appliance',index:'0'}})}});
+  assert.equal(editor._config.appliances.length,0);
 });
