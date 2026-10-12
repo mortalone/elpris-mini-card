@@ -236,7 +236,7 @@ test('top legend gives EVs color-coded icons and abbreviates next-day intervals'
   card.setConfig({entity:'sensor.price',mode:'rolling',hours_back:1,hours_forward:36,legend_position:'top',
     ev_schedules:[{name:'Citroën',entity:'sensor.car',color:'#3366cc',icon:'mdi:car-electric'}]});
   card.hass={states:{
-    ...state([{start:'2026-10-10T12:00:00Z',value:3}]).states,
+    ...state([{start:'2026-10-10T12:00:00Z',value:3},{start:'2026-10-10T13:00:00Z',value:3},{start:'2026-10-10T14:00:00Z',value:3}]).states,
     'sensor.car':{attributes:{charging_schedule:[
       {start:'2026-10-11T04:00:00Z',value:1},
       {start:'2026-10-11T08:00:00Z',value:0}
