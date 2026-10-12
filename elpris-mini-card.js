@@ -1,7 +1,7 @@
-/* Elpris Mini Card v0.1.6 — MIT — no external dependencies */
+/* Elpris Mini Card v0.1.7 — MIT — no external dependencies */
 (() => {
   'use strict';
-  const VERSION = '0.1.6';
+  const VERSION = '0.1.7';
   const DEFAULT_COLORS = [
     {value: 1, color: 'cyan'}, {value: 2, color: 'green'},
     {value: 3, color: 'orange'}, {value: 4, color: 'red'},
@@ -52,7 +52,7 @@
       if (!config?.entity) throw new Error('Elpris Mini Card: entity skal angives.');
       if (config.mode && !['day','rolling'].includes(config.mode)) throw new Error('mode skal være day eller rolling.');
       const c=this._config={entity:config.entity, attribute:config.attribute || 'raw_two_days', mode:config.mode || 'day',
-        height:number(config.height,110,80,500), hours_back:number(config.hours_back,1,0,48), hours_forward:number(config.hours_forward,6,1,48),
+        height:number(config.height,110,80,500), hours_back:number(config.hours_back,1,0,48), hours_forward:config.hours_forward==='auto' ? 'auto' : number(config.hours_forward,6,1,48),
         cheap_count:Math.floor(number(config.cheap_count,2,0,24)), show_now:config.show_now!==false, show_cheap:config.show_cheap!==false,
         show_header:config.show_header!==false, show_yaxis:config.show_yaxis!==false, decimals:Math.floor(number(config.decimals,2,0,6)),
         unit:config.unit, value_multiplier:number(config.value_multiplier,1,0.000001,1000000), line_width:number(config.line_width,3,1,10),
@@ -91,13 +91,22 @@
     getCardSize() {return this._config ? Math.ceil(this._config.height/50) : 2;}
     getGridOptions() {return {columns:12, rows:2, min_rows:2};}
     static getStubConfig() {return {entity:'sensor.ev_smart_charging_charging',attribute:'raw_two_days',height:110};}
-    _render() {
-      const c=this._config; if (!c) return;
-      const w=this._width, h=c.height, now=Date.now();
+    _getTimeWindow(now) {
+      const c=this._config;
       const midnight=new Date(now); midnight.setHours(0,0,0,0);
       const tomorrow=new Date(midnight); tomorrow.setDate(tomorrow.getDate()+1);
       const start=c.mode==='day' ? +midnight : now-c.hours_back*3600000;
-      const end=c.mode==='day' ? +tomorrow : now+c.hours_forward*3600000;
+      if (c.mode==='day') return {start, end:+tomorrow};
+      if (c.hours_forward!=='auto') return {start, end:now+c.hours_forward*3600000};
+      // Stop at the last future interval actually supplied by the sensor.
+      // Never extrapolate prices; keep a minimum 1 h visible when prices are missing.
+      const latest=this._data.reduce((end,p)=>p.end>now ? Math.max(end,p.end) : end,0);
+      return {start,end:Math.max(now+3600000,latest)};
+    }
+    _render() {
+      const c=this._config; if (!c) return;
+      const w=this._width, h=c.height, now=Date.now();
+      const {start,end}=this._getTimeWindow(now);
       const current=this._data.find(p=>p.t<=now && p.end>now);
       const visible=this._data.filter(p=>p.end>start && p.t<end);
       if (!visible.length) {this._root.innerHTML='<div class="empty">Ingen prisdata i den valgte periode</div>'; return;}
