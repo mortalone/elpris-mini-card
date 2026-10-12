@@ -326,7 +326,7 @@ test('EV schedules support an independent countdown, including currently schedul
       {name:'MG',entity:'sensor.ev_b',icon:'mdi:car-electric',color:'#aa5533'}
     ]};
   const hass={states:{
-    ...state([{start:'2026-10-10T12:00:00Z',value:3}]).states,
+    ...state([{start:'2026-10-10T12:00:00Z',value:3},{start:'2026-10-10T13:00:00Z',value:3},{start:'2026-10-10T14:00:00Z',value:3}]).states,
     'sensor.ev_a':{attributes:{charging_schedule:[
       {start:'2026-10-10T14:00:00Z',value:1},
       {start:'2026-10-10T16:00:00Z',value:0}
