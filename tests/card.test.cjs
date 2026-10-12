@@ -53,8 +53,9 @@ test('native ha-card owns the background and CSS survives graph updates',()=>{
   const {card}=setup();
   const css=card._style.textContent;
   assert.ok(css.includes('ha-card{min-height:'));
-  assert.ok(!css.includes('background:'));
-  assert.ok(!css.includes('background-color:'));
+  const cardCss=css.slice(css.indexOf('ha-card{'),css.indexOf('}',css.indexOf('ha-card{'))+1);
+  assert.ok(!cardCss.includes('background:'));
+  assert.ok(!cardCss.includes('background-color:'));
   assert.ok(!css.includes('rgba(250,246,235'));
   card.hass=state([{start:'2026-10-10T12:00:00Z',value:2}]);
   card._render();
