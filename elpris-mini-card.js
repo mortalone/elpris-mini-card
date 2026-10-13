@@ -93,12 +93,13 @@
   }
   function timeUntilStart(start,now,kind='appliance') {
     if(start<=now) return {full:kind==='ev'?'Planlagt nu':'Start nu',short:'nu'};
-    // Round up so that the display never says "0 minutes" before the start.
-    const total=Math.ceil((start-now)/MINUTE);
-    const hours=Math.floor(total/60),minutes=total%60;
-    const full='Om '+(hours?hours+' t'+(minutes?' ':''):'')+(minutes?minutes+' min':'');
-    const short='om '+(hours?hours+'t':'')+(minutes?minutes+'m':'');
-    return {full,short};
+    // For manual delayed-start appliances, always round UP to the next half hour.
+    // e.g. 6h05 -> 6½ time, 6h35 -> 7 timer. Never understate remaining time.
+    const halfHours=Math.ceil((start-now)/(30*MINUTE));
+    const hours=Math.floor(halfHours/2),half=halfHours%2===1;
+    const amount=half?(hours?hours+'½':'½'):String(hours);
+    const suffix=half?'time':hours===1?'time':'timer';
+    return {full:'Om '+amount+' '+suffix,short:'om '+amount+' t'};
   }
   function displayedTime(item,start,end,now,kind) {
     const interval=timespan(start,end,now),shortInterval=compactTimespan(start,end,now);
