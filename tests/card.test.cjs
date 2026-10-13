@@ -491,3 +491,80 @@ test('countdown always rounds UP to half-hour increments without showing dates o
   assert.ok(!fivePastSix.includes('6 t 5 min'));
   assert.ok(!fivePastSix.includes('2026-10-10'));
 });
+
+test('compact legend shows hour-only ranges, half-hour countdowns and never +N in header',()=>{
+  process.env.TZ='UTC';
+  const {card,Editor}=setup('2026-10-13T23:00:00Z');
+  const config={entity:'sensor.price',mode:'rolling',hours_back:1,hours_forward:12,
+    show_header:true,legend_position:'header',legend_compact:true,
+    appliances:[{name:'Opvaskemaskine',duration:120,color:'#008577',time_display:'countdown'}],
+    ev_schedules:[{name:'MG',entity:'sensor.car',color:'#9955cc',time_display:'interval'}]};
+  const slots=[
+    {start:'2026-10-13T23:00:00Z',value:4},
+    {start:'2026-10-14T00:00:00Z',value:2},
+    {start:'2026-10-14T01:00:00Z',value:1},
+    {start:'2026-10-14T02:00:00Z',value:1},
+    {start:'2026-10-14T03:00:00Z',value:3},
+    {start:'2026-10-14T04:00:00Z',value:3},
+    {start:'2026-10-14T05:00:00Z',value:3},
+    {start:'2026-10-14T06:00:00Z',value:3}
+  ];
+  const hass={states:{
+    ...state(slots).states,
+    'sensor.car':{attributes:{charging_schedule:[
+      {start:'2026-10-14T00:30:00Z',value:1},
+      {start:'2026-10-14T01:30:00Z',value:0},
+      {start:'2026-10-14T04:15:00Z',value:1},
+      {start:'2026-10-14T05:45:00Z',value:0}
+    ]}}
+  }};
+  card.setConfig(config);card.hass=hass;
+  let html=card._root.innerHTML;
+  assert.equal(card._config.legend_compact,true);
+  assert.ok(html.includes('00–01'));
+  assert.ok(!html.includes('14/00–01'));
+  assert.ok(!html.includes('00:30–01:30</span>'));
+  assert.ok(!html.includes('+1</span>'));
+  assert.ok(html.includes('Øvrige ladeperioder:'));
+  assert.ok(html.includes('14/10'));
+  assert.ok(html.includes('class="ep-header-legend"'));
+  const priceWindow=html.slice(html.indexOf('class="ep-header-legend"'),html.indexOf('</div></div>',html.indexOf('class="ep-header-legend"'))+12);
+  assert.ok(!priceWindow.includes('om '));
+  assert.ok(!priceWindow.includes('14/'));
+  assert.ok(!priceWindow.includes(' +1'));
+  card.setConfig({...config,legend_compact:false});
+  html=card._root.innerHTML;
+  assert.ok(html.includes('14/00:30–01:30 +1'));
+  assert.ok(html.includes('om '));
+  const editor=Object.create(Editor.prototype);
+  editor._config={entity:'sensor.price'};
+  let markup='';
+  editor.shadowRoot={set innerHTML(v){markup=v;},get innerHTML(){return markup;}};
+  editor._render();
+  assert.ok(markup.includes('data-key="legend_compact"'));
+  editor._save=function(c){this._config=c;this._render();};
+  editor._changed({target:{dataset:{key:'legend_compact'},type:'checkbox',checked:true}});
+  assert.equal(editor._config.legend_compact,true);
+});
+
+test('compact legend works with inline, top and bottom without changing the graph',()=>{
+  process.env.TZ='UTC';
+  const {card}=setup('2026-10-10T12:15:00Z');
+  const prices=[
+    {start:'2026-10-10T12:00:00Z',value:4},
+    {start:'2026-10-10T13:00:00Z',value:3},
+    {start:'2026-10-10T14:00:00Z',value:1},
+    {start:'2026-10-10T15:00:00Z',value:1},
+    {start:'2026-10-10T16:00:00Z',value:4}
+  ];
+  const config={entity:'sensor.price',mode:'rolling',hours_forward:6,legend_compact:true,
+    appliances:[{name:'Opvaskemaskine',duration:120,icon:'mdi:dishwasher',time_display:'countdown'}]};
+  for(const placement of ['bottom','top','header','inline']) {
+    card.setConfig({...config,legend_position:placement});card.hass=state(prices);
+    const html=card._root.innerHTML;
+    assert.ok(html.includes('1½ t'));
+    assert.ok(!html.includes('om 1½ t</span>'));
+    assert.ok(html.includes('14:00–16:00'));
+    assert.ok(html.includes('<svg'));
+  }
+});
