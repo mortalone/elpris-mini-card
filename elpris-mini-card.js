@@ -115,7 +115,7 @@
     const b=(new Date(end).toDateString()===new Date(start).toDateString()?'':date(end)+'/')+compact(end);
     return a+'–'+b;
   }
-  function inlinePlacements(markers,left,right,labelY) {
+  function inlinePlacements(markers,left,right,labelY,fontSize=10,iconSize=14) {
     const occupied=[];
     const placed=[];
     // The label lane is reserved above the plot. Labels never cover the price line.
@@ -123,7 +123,7 @@
     for(const marker of candidates) {
       let chosen=null;
       for(const iconOnly of [false,true]) {
-        const width=iconOnly?20:Math.min(138,24+Math.ceil(marker.shortTime.length*5.6));
+        const width=iconOnly?iconSize+6:Math.min(240,iconSize+10+Math.ceil(marker.shortTime.length*fontSize*0.58));
         if(width>right-left) continue;
         const x=Math.max(left,Math.min(right-width,marker.center-width/2));
         if(occupied.some(box=>x<box.right+3 && x+width>box.left-3)) continue;
@@ -172,32 +172,51 @@
         show_appliances:config.show_appliances!==false,
         show_charging:config.show_charging!==false,
         show_legend:config.show_legend!==false,
+        legend_font_size:number(config.legend_font_size,10,8,24),
+        legend_icon_size:number(config.legend_icon_size,14,10,36),
         legend_position:['bottom','top','header','inline'].includes(config.legend_position)?config.legend_position:'bottom'
       };
       if (!Array.isArray(c.color_threshold) || !c.color_threshold.length || c.color_threshold.some(p=>!Number.isFinite(Number(p.value)) || typeof p.color!=='string')) throw new Error('color_threshold kræver value og color.');
       c.color_threshold=c.color_threshold.map(p=>({value:Number(p.value),color:p.color})).sort((a,b)=>a.value-b.value);
       this._signature=null;this._scheduleSignature=null;this._state=null;this._scheduleData=[];
-      const n=this._legendCount(), extra=n && c.show_legend ? (c.legend_position==='bottom'?10+n*23+6:c.legend_position==='top'?29:c.legend_position==='inline'?22:0):0;
-      const total=c.height+extra;
+      const layout=this._legendLayout();
+      const total=c.height+layout.extra;
       this._totalHeight=total;
-      const reserved=c.show_legend && n && c.legend_position==='inline' ? 22 : 0;
-      const chartHeight=c.height+reserved;
+      const chartHeight=layout.chartHeight;
+      const textPx=c.legend_font_size, iconPx=c.legend_icon_size;
       this._style.textContent=':host{display:block}ha-card{min-height:'+total+'px;box-sizing:border-box;overflow:hidden;padding:0}'+
         'svg{display:block;width:100%;height:'+chartHeight+'px;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}'+
         '.empty{min-height:'+c.height+'px;display:flex;align-items:center;justify-content:center;font:12px Arial;color:var(--secondary-text-color,#aaa)}'+
-        '.ep-legend{padding:5px 11px 7px;display:grid;gap:2px;border-top:1px solid var(--divider-color,transparent);font:11px/20px var(--paper-font-body1_-_font-family,Arial,sans-serif);color:var(--primary-text-color)}'+
-        '.ep-item{display:flex;align-items:center;gap:6px;min-height:21px;white-space:nowrap;overflow:hidden}'+
-        '.ep-icon{width:15px;height:15px;--mdc-icon-size:15px;flex:none}.ep-name{max-width:44%;overflow:hidden;text-overflow:ellipsis;font-weight:600}'+
-        '.ep-time{margin-left:auto;color:var(--secondary-text-color);overflow:hidden;text-overflow:ellipsis}'+
+        '.ep-legend{padding:5px 11px 7px;display:grid;gap:2px;border-top:1px solid var(--divider-color,transparent);font-size:'+Math.max(11,textPx)+'px;line-height:1.3;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif);color:var(--primary-text-color)}'+
+        '.ep-item{display:flex;align-items:center;gap:6px;min-height:'+layout.rowHeight+'px;white-space:nowrap;overflow:hidden}'+
+        '.ep-icon{width:'+iconPx+'px;height:'+iconPx+'px;--mdc-icon-size:'+iconPx+'px;flex:none}'+
+        '.ep-name{max-width:44%;overflow:hidden;text-overflow:ellipsis;font-weight:600}.ep-time{margin-left:auto;color:var(--secondary-text-color);overflow:hidden;text-overflow:ellipsis}'+
         '.ep-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}'+
-        '.ep-top{display:flex;align-items:center;justify-content:flex-end;padding:4px 8px;overflow-x:auto;min-height:21px;white-space:nowrap;scrollbar-width:thin}'+
+        '.ep-top{display:flex;align-items:center;justify-content:flex-end;padding:4px 8px;box-sizing:border-box;height:'+layout.topHeight+'px;overflow-x:auto;white-space:nowrap;scrollbar-width:thin}'+
         '.ep-top-items{display:inline-flex;align-items:center;gap:8px;min-width:max-content;margin-left:auto}'+
-        '.ep-header-legend{position:absolute;top:4px;right:8px;height:24px;display:flex;align-items:center;justify-content:flex-end;overflow-x:auto;scrollbar-width:thin;z-index:1}'+
-        '.ep-top-item{display:inline-flex;align-items:center;gap:3px;flex:none;color:var(--secondary-text-color);font-size:10px}'+
-        '.ep-top-item .ep-icon,.ep-tag .ep-icon{color:var(--ep-color);width:14px;height:14px;--mdc-icon-size:14px}'+
+        '.ep-header-legend{position:absolute;top:4px;right:8px;height:'+layout.headerLegendHeight+'px;display:flex;align-items:center;justify-content:flex-end;overflow-x:auto;scrollbar-width:thin;z-index:1}'+
+        '.ep-top-item{display:inline-flex;align-items:center;gap:3px;flex:none;color:var(--secondary-text-color);font-size:'+textPx+'px;line-height:1.25}'+
+        '.ep-top-item .ep-icon,.ep-tag .ep-icon{color:var(--ep-color)}'+
         '.ep-chart{position:relative;width:100%;height:'+chartHeight+'px}'+
-        '.ep-tag{position:absolute;display:flex;align-items:center;gap:2px;height:16px;box-sizing:border-box;padding:0 2px;border:1px solid var(--ha-card-border-color,transparent);border-radius:5px;background:var(--secondary-background-color,var(--card-background-color,transparent));color:var(--primary-text-color);font:10px/14px var(--paper-font-body1_-_font-family,Arial,sans-serif);white-space:nowrap;pointer-events:none;overflow:hidden;z-index:1}';
+        '.ep-tag{position:absolute;display:flex;align-items:center;gap:2px;height:'+layout.labelHeight+'px;box-sizing:border-box;padding:0 2px;border:1px solid var(--ha-card-border-color,transparent);border-radius:5px;background:var(--secondary-background-color,var(--card-background-color,transparent));color:var(--primary-text-color);font-size:'+textPx+'px;line-height:1.25;font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif);white-space:nowrap;pointer-events:none;overflow:hidden;z-index:1}';
       if (this._hass) this.hass=this._hass; else this._render();
+    }
+    _legendLayout() {
+      const c=this._config;
+      const textHeight=Math.ceil(c.legend_font_size*1.25);
+      const tallest=Math.max(c.legend_icon_size,textHeight);
+      const rowHeight=Math.max(21,tallest+6);
+      const topHeight=Math.max(29,tallest+12);
+      const labelHeight=Math.max(16,tallest+4);
+      const headerLegendHeight=Math.max(24,tallest+4);
+      const n=this._legendCount(), visible=c.show_legend && n>0;
+      const inlineBand=visible && c.legend_position==='inline' ? Math.max(22,tallest+8):0;
+      const headerExtra=visible && c.legend_position==='header' ?
+        Math.max(0,tallest+12-(c.show_header?32:12)):0;
+      const extra=!visible?0:c.legend_position==='bottom'?16+n*(rowHeight+2):
+        c.legend_position==='top'?topHeight:inlineBand+headerExtra;
+      return {rowHeight,topHeight,labelHeight,headerLegendHeight,inlineBand,headerExtra,
+        chartHeight:c.height+inlineBand+headerExtra,extra};
     }
     _legendCount() {
       const c=this._config;
@@ -255,13 +274,13 @@
     }
     _render() {
       const c=this._config; if (!c) return;
-      const inlineBand=c.show_legend && c.legend_position==='inline' && this._legendCount()>0 ? 22 : 0;
-      const w=this._width, h=c.height+inlineBand, now=Date.now();
+      const layout=this._legendLayout(), inlineBand=layout.inlineBand;
+      const w=this._width, h=layout.chartHeight, now=Date.now();
       const {start,end}=this._getTimeWindow(now);
       const current=this._data.find(p=>p.t<=now && p.end>now);
       const visible=this._data.filter(p=>p.end>start && p.t<end);
       if (!visible.length) {this._root.innerHTML='<div class="empty">Ingen prisdata i den valgte periode</div>'; return;}
-      const left=c.show_yaxis?30:10, right=w-10, top=(c.show_header?32:12)+inlineBand, bottom=h-23;
+      const left=c.show_yaxis?30:10, right=w-10, top=(c.show_header?32:12)+inlineBand+layout.headerExtra, bottom=h-23;
       let low=Math.min(0,...visible.map(p=>p.value)), high=Math.max(...visible.map(p=>p.value));
       if (high-low<0.5) {high=low+0.5;} high+=(high-low)*0.08;
       const x=t=>left+(t-start)/(end-start)*(right-left), y=v=>bottom-(v-low)/(high-low)*(bottom-top);
@@ -374,7 +393,7 @@
       }
       let annotations='';
       if(position==='inline' && inlineBand) {
-        const tags=inlinePlacements(markers,left,right,top-inlineBand+3);
+        const tags=inlinePlacements(markers,left,right,top-inlineBand+3,c.legend_font_size,c.legend_icon_size);
         annotations=tags.map(tag=>
           '<div class="ep-tag" title="'+esc(tag.item.name+': '+tag.fullTime)+'" aria-label="'+esc(tag.item.name+': '+tag.fullTime)+'" style="left:'+tag.left+'px;top:'+tag.top+'px;width:'+tag.width+'px;--ep-color:'+esc(tag.item.color)+'">'+
           '<ha-icon class="ep-icon" icon="'+esc(tag.item.icon)+'"></ha-icon>'+
@@ -460,6 +479,8 @@
         this._input('hours_back',c.hours_back??2,'Timer bagud','number','min="0" max="48" step="1"')+
         this._input('hours_forward',future,'Timer frem (eller auto)')+
         this._input('height',c.height??110,'Grafhøjde, px','number','min="80" max="500"')+
+        this._input('legend_font_size',c.legend_font_size??10,'Legend tekststørrelse (px)','number','min="8" max="24" step="1"')+
+        this._input('legend_icon_size',c.legend_icon_size??14,'Legend ikonstørrelse (px)','number','min="10" max="36" step="1"')+
         this._bool('show_legend','Vis forklaring / labels')+
         '<label>Placering af forklaring<select data-key="legend_position">'+
         '<option value="bottom" '+((c.legend_position||'bottom')==='bottom'?'selected':'')+'>Nederst (navn, ikon og tid)</option>'+
