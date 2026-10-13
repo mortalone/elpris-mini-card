@@ -563,8 +563,9 @@ test('compact legend works with inline, top and bottom without changing the grap
   for(const placement of ['bottom','top','header','inline']) {
     card.setConfig({...config,legend_position:placement});card.hass=state(prices);
     const html=card._root.innerHTML;
-    assert.ok(html.includes('2 t'));
+    assert.ok(html.includes('2t'));
     assert.ok(!html.includes('om 2 t</span>'));
+    assert.ok(!html.includes('2 t</span>'));
     assert.ok(html.includes('14:00–16:00'));
     assert.ok(html.includes('<svg'));
   }
