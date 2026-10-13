@@ -105,7 +105,7 @@
     const interval=timespan(start,end,now),shortInterval=compactTimespan(start,end,now);
     if(item.time_display==='countdown') {
       const left=timeUntilStart(start,now,kind);
-      return {time:left.full,shortTime:left.short,compactTime:left.short.replace(/^om\s+/i,''),tooltip:left.full+' ('+interval+')'};
+      return {time:left.full,shortTime:left.short,compactTime:left.short.replace(/^om\s+/i,'').replace(/\s+t$/,'t'),tooltip:left.full+' ('+interval+')'};
     }
     return {time:interval,shortTime:shortInterval,compactTime:hoursOnlyTimespan(start,end),tooltip:interval};
   }
