@@ -161,7 +161,7 @@ legend_compact: true
 
 I kompakt format vises **kun timer, ingen datoer eller minuttal**, og den indledende tekst *om* fjernes fra nedtællinger:
 
-- **Tid til start:** `om 4½ t` → `4½ t`. Den tidligere afrunding **op til nærmeste halve time** bibeholdes.
+- **Tid til start:** `om 4½ t` → `4½t`. Den tidligere afrunding **op til nærmeste halve time** bibeholdes.
 - **Tidsinterval:** `14/00–01` → `00–01`. Ved ikke-hele timer vises kun timetallene som en bevidst, grov forkortelse; grafen og tooltip bevarer de præcise minutværdier.
 - **Flere ladeperioder:** `14/00–01 +1` → `00–01`. `+1` betød, at den pågældende bil har **endnu én separat planlagt ladeperiode**, ikke at datoen er i morgen. Kompakt format skjuler antal øvrige perioder i legend, men viser stadig **alle ladeperioderne på grafen** og de præcise intervaller i tooltip.
 - Mellemrummene mellem de højrestillede ikoner reduceres lidt.
