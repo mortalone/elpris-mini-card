@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.2.3**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
+Version **0.2.4**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -99,6 +99,24 @@ grid_options:
 
 Du kan skjule markeringerne separat med `show_appliances: false` og `show_charging: false`. `show_cheap: false` skjuler de tidligere blå "billigste enkeltintervaller", hvis du kun ønsker de nye sammenhængende perioder.
 
+## Juster størrelsen af legenden
+
+Fra **v0.2.4** kan du indstille størrelsen på legendens **tekst/tidsangivelser** og **ikoner** hver for sig direkte i den visuelle Lovelace-editor under *Elprisgraf*. Det samme kan gøres i YAML:
+
+```yaml
+legend_font_size: 16    # pixels, 8–24 (standard 10)
+legend_icon_size: 24    # pixels, 10–36 (standard 14)
+```
+
+Indstillingerne gælder alle placeringer: `bottom`, `top`, `header` og `inline`. Farverne kommer stadig fra hver enheds konfiguration, og selve kortbaggrunden følger fortsat Home Assistant-temaet.
+
+- **`bottom`**: Oversigtslinjerne bliver automatisk højere, når tekst eller ikoner bliver større.
+- **`top`**: Højrestillet legend får automatisk plads til større tekst og ikoner.
+- **`header`**: Legenden bliver ved siden af elprisen i højre side. Er den større end den normale prisoverskrift, øges kortets højde netop nok til, at kurven ikke dækkes.
+- **`inline`**: Størrelsen af den reserverede stribe *over prisgrafen* følger de valgte størrelser. Ved pladsmangel forkortes tidsangivelsen til ikon, eller en label udelades for at undgå overlap. Markeringens farvede periode vises stadig.
+
+På en smal tablet kan **16 px tekst og 22–24 px ikoner** være et godt udgangspunkt. Jo større ikoner og tekst, desto færre enheder kan dog være synlige samtidig i `header` og `inline`. De visuelle ændringer kræver ingen yderligere ressourcer eller sensorer.
+
 ## Valg mellem tidsinterval og tid til start
 
 Fra **v0.2.3** kan **hver enkelt hvidevare eller bil** selv vælge, hvordan dens tidspunkt vises i legend. Indstillingen findes i den visuelle Lovelace-korteditor under den enkelte enhed som **Vis tidsangivelse**, eller via `time_display` i YAML.
@@ -184,6 +202,8 @@ height: 110
 | `show_legend` | `true` | Slå forklaring/labels til eller fra i alle visninger |
 | `time_display` (pr. apparat/bil) | `interval` | `interval` = klokkeslæt; `countdown` = tid indtil start (påvirker kun legend) |
 | `legend_position` | `bottom` | `bottom` (nederst), `top` (øverst/højre), `header` (ved prisen/højre), `inline` (over kurven ved markeringen) |
+| `legend_font_size` | `10` | Legend-tekst og tider i px (8–24) |
+| `legend_icon_size` | `14` | Legend-ikoner i px (10–36) |
 
 ```yaml
 color_threshold:
