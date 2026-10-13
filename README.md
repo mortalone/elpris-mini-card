@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.2.5**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
+Version **0.2.6**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -149,6 +149,25 @@ ev_schedules:
 
 **Vigtigt ved udskudt start:** Opvaskemaskinens tidspunkt er en *anbefaling beregnet ud fra aktuelt kendte priser*, ikke en låst reservation. Det billigste tidspunkt kan ændre sig, når nuværende tidspunkt går frem, eller der kommer nye priser. Når du har programmeret maskinens udskudte start, følger kortet ikke maskinens faktisk valgte starttid; det viser fortsat det billigste beregnede tidspunkt. Beregningen foretager ingen handling på opvaskemaskinen.
 
+## Ekstra kompakt legend til tablets (v0.2.6)
+
+Hvis ikoner og tidsangivelser fylder for meget på en smal skærm, kan du aktivere et **valgfrit kompakt format** under *Elprisgraf → Kompakt legend* i korteditoren:
+
+```yaml
+show_legend: true
+legend_position: header
+legend_compact: true
+```
+
+I kompakt format vises **kun timer, ingen datoer eller minuttal**, og den indledende tekst *om* fjernes fra nedtællinger:
+
+- **Tid til start:** `om 4½ t` → `4½ t`. Den tidligere afrunding **op til nærmeste halve time** bibeholdes.
+- **Tidsinterval:** `14/00–01` → `00–01`. Ved ikke-hele timer vises kun timetallene som en bevidst, grov forkortelse; grafen og tooltip bevarer de præcise minutværdier.
+- **Flere ladeperioder:** `14/00–01 +1` → `00–01`. `+1` betød, at den pågældende bil har **endnu én separat planlagt ladeperiode**, ikke at datoen er i morgen. Kompakt format skjuler antal øvrige perioder i legend, men viser stadig **alle ladeperioderne på grafen** og de præcise intervaller i tooltip.
+- Mellemrummene mellem de højrestillede ikoner reduceres lidt.
+
+Fungerer med `bottom`, `top`, `header` og `inline`. `legend_compact: false` er standard, så eksisterende kort forbliver uændrede, indtil du aktiverer funktionen. Dette er ren tekstformatering: ingen nye sensorer, WebSocket-abonnementer eller beregninger.
+
 ## Placering af forklaring (legend)
 
 Fra **v0.2.2** er der fire valgmuligheder i den visuelle Lovelace-editor under *Elprisgraf → Placering af forklaring*, eller i YAML:
@@ -203,6 +222,7 @@ height: 110
 | `show_legend` | `true` | Slå forklaring/labels til eller fra i alle visninger |
 | `time_display` (pr. apparat/bil) | `interval` | `interval` = klokkeslæt; `countdown` = tid indtil start, rundet op til hele/halve timer (påvirker kun legend) |
 | `legend_position` | `bottom` | `bottom` (nederst), `top` (øverst/højre), `header` (ved prisen/højre), `inline` (over kurven ved markeringen) |
+| `legend_compact` | `false` | Udelad »om«, dato, minutter og antallet af øvrige ladeperioder i legend |
 | `legend_font_size` | `10` | Legend-tekst og tider i px (8–24) |
 | `legend_icon_size` | `14` | Legend-ikoner i px (10–36) |
 
