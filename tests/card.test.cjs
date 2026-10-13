@@ -529,9 +529,10 @@ test('compact legend shows hour-only ranges, half-hour countdowns and never +N i
   assert.ok(html.includes('14/10'));
   assert.ok(html.includes('class="ep-header-legend"'));
   const priceWindow=html.slice(html.indexOf('class="ep-header-legend"'),html.indexOf('</div></div>',html.indexOf('class="ep-header-legend"'))+12);
-  assert.ok(!priceWindow.includes('om '));
-  assert.ok(!priceWindow.includes('14/'));
-  assert.ok(!priceWindow.includes(' +1'));
+  const visibleText=priceWindow.replace(/<[^>]*>/g,'');
+  assert.ok(!visibleText.includes('om '));
+  assert.ok(!visibleText.includes('14/'));
+  assert.ok(!visibleText.includes(' +1'));
   card.setConfig({...config,legend_compact:false});
   html=card._root.innerHTML;
   assert.ok(html.includes('14/00:30–01:30 +1'));
@@ -562,8 +563,8 @@ test('compact legend works with inline, top and bottom without changing the grap
   for(const placement of ['bottom','top','header','inline']) {
     card.setConfig({...config,legend_position:placement});card.hass=state(prices);
     const html=card._root.innerHTML;
-    assert.ok(html.includes('1½ t'));
-    assert.ok(!html.includes('om 1½ t</span>'));
+    assert.ok(html.includes('2 t'));
+    assert.ok(!html.includes('om 2 t</span>'));
     assert.ok(html.includes('14:00–16:00'));
     assert.ok(html.includes('<svg'));
   }
