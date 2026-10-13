@@ -301,18 +301,18 @@ test('dishwasher can show time until cheapest start without changing other appli
   };
   const {card}=setup('2026-10-10T12:15:00Z');
   card.setConfig(configs);card.hass=state(prices);
-  assert.ok(card._root.innerHTML.includes('Om 1 t 45 min'));
+  assert.ok(card._root.innerHTML.includes('Om 2 timer'));
   assert.ok(card._root.innerHTML.includes('14:00–16:00'));
-  assert.ok(card._root.innerHTML.includes('title="Opvaskemaskine: Om 1 t 45 min (14:00–16:00)"'));
+  assert.ok(card._root.innerHTML.includes('title="Opvaskemaskine: Om 2 timer (14:00–16:00)"'));
   card.setConfig({...configs,legend_position:'header'});
-  assert.ok(card._root.innerHTML.includes('om 1t45m'));
+  assert.ok(card._root.innerHTML.includes('om 2 t'));
   assert.ok(card._root.innerHTML.includes('14–16'));
   card.setConfig({...configs,legend_position:'inline'});
-  assert.ok(card._root.innerHTML.includes('om 1t45m'));
+  assert.ok(card._root.innerHTML.includes('om 2 t'));
   assert.ok(card._root.innerHTML.includes('class="ep-tag"'));
   const {card:later}=setup('2026-10-10T12:16:00Z');
   later.setConfig(configs);later.hass=state(prices);
-  assert.ok(later._root.innerHTML.includes('Om 1 t 44 min'));
+  assert.ok(later._root.innerHTML.includes('Om 2 timer'));
   const {card:now}=setup('2026-10-10T14:00:00Z');
   now.setConfig(configs);now.hass=state(prices);
   assert.ok(now._root.innerHTML.includes('Start nu'));
@@ -337,9 +337,9 @@ test('EV schedules support an independent countdown, including currently schedul
     ]}}
   }};
   card.setConfig(config);card.hass=hass;
-  assert.ok(card._root.innerHTML.includes('om 1t45m'));
+  assert.ok(card._root.innerHTML.includes('om 2 t'));
   assert.ok(card._root.innerHTML.includes('13–15'));
-  assert.ok(card._root.innerHTML.includes('Citroën: Om 1 t 45 min'));
+  assert.ok(card._root.innerHTML.includes('Citroën: Om 2 timer'));
   const {card:active}=setup('2026-10-10T14:15:00Z');
   active.setConfig(config);active.hass=hass;
   assert.ok(active._root.innerHTML.includes('Planlagt nu'));
@@ -391,7 +391,7 @@ test('legend icon and text sizes are independently configurable in all legend pl
   assert.ok(card._style.textContent.includes('--mdc-icon-size:26px'));
   assert.ok(card._style.textContent.includes('font-size:18px'));
   assert.ok(card._totalHeight>standardHeight);
-  assert.ok(card._root.innerHTML.includes('Om 1 t 45 min'));
+  assert.ok(card._root.innerHTML.includes('Om 2 timer'));
   card.setConfig({...base,legend_position:'top',legend_font_size:18,legend_icon_size:26});
   assert.ok(card._totalHeight>=148);
   assert.ok(card._style.textContent.includes('height:38px'));
@@ -455,4 +455,39 @@ test('wide countdown labels can fall back to icon-only without hiding the plotte
   assert.ok(card._root.innerHTML.includes('fill="#008877"'));
   assert.ok(card._root.innerHTML.includes('class="ep-tag"'));
   assert.ok(card._totalHeight>=150);
+});
+
+test('countdown always rounds UP to half-hour increments without showing dates or minutes',()=>{
+  process.env.TZ='UTC';
+  const origin='2026-10-10T12:15:00Z';
+  function show(start) {
+    const {card}=setup(origin);
+    card.setConfig({entity:'sensor.price',mode:'rolling',hours_forward:12,legend_position:'bottom',
+      ev_schedules:[{name:'Citroën',entity:'sensor.car',color:'#3377cc',time_display:'countdown'}]});
+    const slots=[
+      {start:'2026-10-10T12:00:00Z',value:3},
+      {start:'2026-10-10T18:00:00Z',value:3},
+      {start:'2026-10-10T19:00:00Z',value:3}
+    ];
+    card.hass={states:{...state(slots).states,
+      'sensor.car':{attributes:{charging_schedule:[
+        {start,value:1},{start:new Date(Date.parse(start)+3600000).toISOString(),value:0}
+      ]}}}};
+    return card._root.innerHTML;
+  }
+  const lessThanHalf=show('2026-10-10T12:20:00Z');
+  assert.ok(lessThanHalf.includes('Om ½ time'));
+  assert.ok(!lessThanHalf.includes('Om 0'));
+  const fivePastSix=show('2026-10-10T18:20:00Z');
+  assert.ok(fivePastSix.includes('Om 6½ time'));
+  const thirtyPastSix=show('2026-10-10T18:45:00Z');
+  assert.ok(thirtyPastSix.includes('Om 6½ time'));
+  const thirtyFivePastSix=show('2026-10-10T18:50:00Z');
+  assert.ok(thirtyFivePastSix.includes('Om 7 timer'));
+  const exactlySix=show('2026-10-10T18:15:00Z');
+  assert.ok(exactlySix.includes('Om 6 timer'));
+  const exactlyOne=show('2026-10-10T13:15:00Z');
+  assert.ok(exactlyOne.includes('Om 1 time'));
+  assert.ok(!fivePastSix.includes('6 t 5 min'));
+  assert.ok(!fivePastSix.includes('2026-10-10'));
 });
