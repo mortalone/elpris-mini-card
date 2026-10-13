@@ -365,3 +365,94 @@ test('editor stores per-device countdown or interval selection',()=>{
     type:'select-one',value:'interval'}});
   assert.equal(editor._config.ev_schedules[0].time_display,'interval');
 });
+
+
+test('legend icon and text sizes are independently configurable in all legend placements',()=>{
+  process.env.TZ='UTC';
+  const {card}=setup('2026-10-10T12:15:00Z');
+  const base={
+    entity:'sensor.price',mode:'rolling',hours_forward:6,hours_back:1,
+    appliances:[{name:'Opvaskemaskine',icon:'mdi:dishwasher',duration:120,color:'#007766',time_display:'countdown'}]
+  };
+  const prices=[
+    {start:'2026-10-10T12:00:00Z',value:4},
+    {start:'2026-10-10T13:00:00Z',value:3},
+    {start:'2026-10-10T14:00:00Z',value:1},
+    {start:'2026-10-10T15:00:00Z',value:1},
+    {start:'2026-10-10T16:00:00Z',value:4}
+  ];
+  card.setConfig(base);card.hass=state(prices);
+  assert.equal(card._config.legend_font_size,10);
+  assert.equal(card._config.legend_icon_size,14);
+  const standardHeight=card._totalHeight;
+  card.setConfig({...base,legend_font_size:18,legend_icon_size:26});
+  assert.equal(card._config.legend_font_size,18);
+  assert.equal(card._config.legend_icon_size,26);
+  assert.ok(card._style.textContent.includes('--mdc-icon-size:26px'));
+  assert.ok(card._style.textContent.includes('font-size:18px'));
+  assert.ok(card._totalHeight>standardHeight);
+  assert.ok(card._root.innerHTML.includes('Om 1 t 45 min'));
+  card.setConfig({...base,legend_position:'top',legend_font_size:18,legend_icon_size:26});
+  assert.ok(card._totalHeight>=148);
+  assert.ok(card._style.textContent.includes('height:38px'));
+  assert.ok(card._root.innerHTML.includes('class="ep-top"'));
+  card.setConfig({...base,legend_position:'header',legend_font_size:18,legend_icon_size:36});
+  assert.equal(card._totalHeight,126);
+  assert.ok(card._root.innerHTML.includes('class="ep-header-legend"'));
+  assert.ok(card._root.innerHTML.includes('class="ep-top-item"'));
+  assert.ok(card._style.textContent.includes('height:126px'));
+  card.setConfig({...base,legend_position:'inline',legend_font_size:20,legend_icon_size:30});
+  assert.equal(card._totalHeight,148);
+  assert.ok(card._root.innerHTML.includes('class="ep-tag"'));
+  const y=Number(card._root.innerHTML.match(/class="ep-tag"[^>]*style="[^"]*top:([\d.]+)px/)[1]);
+  assert.equal(y,35);
+  assert.ok(y+34<=68);
+  assert.ok(card._root.innerHTML.includes('class="ep-chart"'));
+  card.setConfig({...base,legend_position:'inline',legend_font_size:20,legend_icon_size:30,show_legend:false});
+  assert.equal(card._totalHeight,110);
+  assert.ok(!card._root.innerHTML.includes('class="ep-tag"'));
+});
+test('legend sizes clamp to safe limits and are editable in Lovelace UI',()=>{
+  const {card,Editor}=setup();
+  card.setConfig({entity:'sensor.price',legend_font_size:80,legend_icon_size:100});
+  assert.equal(card._config.legend_font_size,24);
+  assert.equal(card._config.legend_icon_size,36);
+  card.setConfig({entity:'sensor.price',legend_font_size:1,legend_icon_size:1});
+  assert.equal(card._config.legend_font_size,8);
+  assert.equal(card._config.legend_icon_size,10);
+  const editor=Object.create(Editor.prototype);
+  editor._config={entity:'sensor.price'};
+  let rendered='';
+  editor.shadowRoot={set innerHTML(v){rendered=v;},get innerHTML(){return rendered;}};
+  editor._render();
+  assert.ok(rendered.includes('data-key="legend_font_size"'));
+  assert.ok(rendered.includes('data-key="legend_icon_size"'));
+  editor._save=function(c){this._config=c;this._render();};
+  editor._changed({target:{dataset:{key:'legend_font_size'},type:'number',value:'17'}});
+  editor._changed({target:{dataset:{key:'legend_icon_size'},type:'number',value:'24'}});
+  assert.equal(editor._config.legend_font_size,17);
+  assert.equal(editor._config.legend_icon_size,24);
+  assert.ok(rendered.includes('value="17"'));
+  assert.ok(rendered.includes('value="24"'));
+});
+test('wide countdown labels can fall back to icon-only without hiding the plotted period',()=>{
+  process.env.TZ='UTC';
+  const {card}=setup('2026-10-10T12:15:00Z');
+  card.setConfig({entity:'sensor.price',mode:'rolling',legend_position:'inline',legend_font_size:24,legend_icon_size:32,
+    hours_forward:6,appliances:[
+      {name:'Opvaskemaskine',duration:120,icon:'mdi:dishwasher',color:'#008877',time_display:'countdown'},
+      {name:'Tørretumbler',duration:120,icon:'mdi:tumble-dryer',color:'#ff6600',time_display:'countdown'}
+    ]});
+  card._width=170;
+  card.hass=state([
+    {start:'2026-10-10T12:00:00Z',value:4},
+    {start:'2026-10-10T13:00:00Z',value:3},
+    {start:'2026-10-10T14:00:00Z',value:1},
+    {start:'2026-10-10T15:00:00Z',value:1},
+    {start:'2026-10-10T16:00:00Z',value:4}
+  ]);
+  assert.ok(card._root.innerHTML.includes('class="ep-chart"'));
+  assert.ok(card._root.innerHTML.includes('fill="#008877"'));
+  assert.ok(card._root.innerHTML.includes('class="ep-tag"'));
+  assert.ok(card._totalHeight>=150);
+});
