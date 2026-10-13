@@ -2,7 +2,7 @@
 
 Et lille read-only Lovelace-kort til Home Assistant, beregnet til et kompakt dashboard på en svag tablet. Ingen ApexCharts, Python, billedfiler eller eksterne afhængigheder.
 
-Version **0.2.4**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
+Version **0.2.5**. Kortet anvender Home Assistants eget `ha-card` og arver automatisk baggrund, tekst, kanter og skygger fra det aktive tema. Den midlertidige WebView/CSS-diagnose er fjernet.
 
 ## Installation gennem HACS
 
@@ -142,9 +142,10 @@ ev_schedules:
 ```
 
 - **`interval` (standard):** Vis faktisk klokkeslætsinterval i legend. Allerede oprettede kort ændrer sig ikke.
-- **`countdown`:** Vis hvor længe der er til start. I bundvisningen vises eksempelvis `Om 2 t 35 min`; i kompakte top/header/inline-visninger `om 2t35m`. Ved start vises **Start nu** for det beregnede hvidevareforslag og **Planlagt nu** for bilens registrerede ladeplan.
-- Begge visninger bevarer **det præcise klokkeslætsinterval i tooltip**.
-- Nedtællingen opdateres af kortets **eksisterende minut-timer** og kræver ingen nye entiteter, API-forespørgsler eller baggrundsopgaver.
+- **`countdown`:** Vis hvor længe der er til start, **rundet op til næste halve time** (fra v0.2.5). I bundvisningen vises eksempelvis `Om 6½ time`; i kompakte top/header/inline-visninger `om 6½ t`. Ved start vises **Start nu** for det beregnede hvidevareforslag og **Planlagt nu** for bilens registrerede ladeplan.
+- Begge visninger bevarer **det præcise klokkeslætsinterval i tooltip**. Den synlige nedtælling viser ingen datoer eller minuttal.
+- Eksempler på oprunding: **6 timer og 5 minutter → 6½ time**, **6 timer og 30 minutter → 6½ time**, **6 timer og 35 minutter → 7 timer**. Det hjælper ved manuelt indstillet udskudt start i hele timer.
+- Nedtællingen bruger kortets **eksisterende minut-timer** og kræver ingen nye entiteter, API-forespørgsler eller baggrundsopgaver. Den synlige værdi ændres typisk kun ved halvtimesgrænser.
 
 **Vigtigt ved udskudt start:** Opvaskemaskinens tidspunkt er en *anbefaling beregnet ud fra aktuelt kendte priser*, ikke en låst reservation. Det billigste tidspunkt kan ændre sig, når nuværende tidspunkt går frem, eller der kommer nye priser. Når du har programmeret maskinens udskudte start, følger kortet ikke maskinens faktisk valgte starttid; det viser fortsat det billigste beregnede tidspunkt. Beregningen foretager ingen handling på opvaskemaskinen.
 
@@ -200,7 +201,7 @@ height: 110
 | `ev_schedules` | `[]` | Liste over biler med `name`, `entity`, `attribute`, `icon`, `color` |
 | `show_appliances` / `show_charging` | `true` / `true` | Aktiver/deaktiver apparat- og ladetidsmarkeringer |
 | `show_legend` | `true` | Slå forklaring/labels til eller fra i alle visninger |
-| `time_display` (pr. apparat/bil) | `interval` | `interval` = klokkeslæt; `countdown` = tid indtil start (påvirker kun legend) |
+| `time_display` (pr. apparat/bil) | `interval` | `interval` = klokkeslæt; `countdown` = tid indtil start, rundet op til hele/halve timer (påvirker kun legend) |
 | `legend_position` | `bottom` | `bottom` (nederst), `top` (øverst/højre), `header` (ved prisen/højre), `inline` (over kurven ved markeringen) |
 | `legend_font_size` | `10` | Legend-tekst og tider i px (8–24) |
 | `legend_icon_size` | `14` | Legend-ikoner i px (10–36) |
