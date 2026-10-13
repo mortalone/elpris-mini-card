@@ -105,9 +105,14 @@
     const interval=timespan(start,end,now),shortInterval=compactTimespan(start,end,now);
     if(item.time_display==='countdown') {
       const left=timeUntilStart(start,now,kind);
-      return {time:left.full,shortTime:left.short,tooltip:left.full+' ('+interval+')'};
+      return {time:left.full,shortTime:left.short,compactTime:left.short.replace(/^om\s+/i,''),tooltip:left.full+' ('+interval+')'};
     }
-    return {time:interval,shortTime:shortInterval,tooltip:interval};
+    return {time:interval,shortTime:shortInterval,compactTime:hoursOnlyTimespan(start,end),tooltip:interval};
+  }
+  function hoursOnlyTimespan(start,end) {
+    // Compact legend omits calendar dates and minutes; full precision stays in tooltip.
+    const hour=t=>String(new Date(t).getHours()).padStart(2,'0');
+    return hour(start)+'–'+hour(end);
   }
   function compactTimespan(start,end,now) {
     const date=t=>{const d=new Date(t);return String(d.getDate()).padStart(2,'0');};
@@ -173,6 +178,7 @@
         show_appliances:config.show_appliances!==false,
         show_charging:config.show_charging!==false,
         show_legend:config.show_legend!==false,
+        legend_compact:config.legend_compact===true,
         legend_font_size:number(config.legend_font_size,10,8,24),
         legend_icon_size:number(config.legend_icon_size,14,10,36),
         legend_position:['bottom','top','header','inline'].includes(config.legend_position)?config.legend_position:'bottom'
@@ -336,10 +342,11 @@
           if(b>a) {
             elements+='<rect x="'+x(a)+'" y="'+top+'" width="'+(x(b)-x(a))+'" height="'+(bottom-top)+'" fill="'+esc(ap.color)+'" opacity=".065"/>';
             elements+='<line x1="'+x(a)+'" y1="'+(bottom-3-i*3)+'" x2="'+x(b)+'" y2="'+(bottom-3-i*3)+'" stroke="'+esc(ap.color)+'" stroke-width="3" stroke-linecap="round"/>';
-            markers.push({item:ap,kind:'appliance',center:(x(a)+x(b))/2,...display,fullTime:display.tooltip});
+            markers.push({item:ap,kind:'appliance',center:(x(a)+x(b))/2,...display,shortTime:c.legend_compact?display.compactTime:display.shortTime,fullTime:display.tooltip});
           }
         }
-        legend.push({item:ap,time:display?.time||'Ingen sammenhængende periode',shortTime:display?.shortTime||'—',tooltip:display?.tooltip||'Ingen sammenhængende periode'});
+        legend.push({item:ap,time:display?.time||'Ingen sammenhængende periode',shortTime:display?.shortTime||'—',
+          compactTime:display?.compactTime||'—',tooltip:display?.tooltip||'Ingen sammenhængende periode'});
       });
       if(c.show_charging) c.ev_schedules.forEach((ev,i)=>{
         const chunks=(this._scheduleData[i]||[]).filter(p=>p.end>now);
@@ -354,14 +361,16 @@
           if(b<=a) continue;
           elements+='<rect x="'+x(a)+'" y="'+(top+3+i*8)+'" width="'+(x(b)-x(a))+'" height="5" rx="2" fill="'+esc(ev.color)+'" opacity=".86"/>';
           const display=displayedTime(ev,Math.max(now,p.start),p.end,now,'ev');
-          markers.push({item:ev,kind:'ev',center:(x(a)+x(b))/2,...display,fullTime:display.tooltip});
+          markers.push({item:ev,kind:'ev',center:(x(a)+x(b))/2,...display,shortTime:c.legend_compact?display.compactTime:display.shortTime,fullTime:display.tooltip});
         }
         const first=grouped[0];
         const display=first?displayedTime(ev,Math.max(now,first.start),first.end,now,'ev'):null;
         const more=grouped.length>1?' (+'+(grouped.length-1)+')':'';
+        const details=grouped.length>1?' | Øvrige ladeperioder: '+grouped.slice(1).map(p=>timespan(p.start,p.end,now)).join(', '):'';
         legend.push({item:ev,time:display?display.time+more:'Ingen ladeplan',
           shortTime:display?display.shortTime+(grouped.length>1?' +'+(grouped.length-1):''):'—',
-          tooltip:display?display.tooltip+more:'Ingen ladeplan'});
+          compactTime:display?.compactTime||'—',
+          tooltip:display?display.tooltip+details:'Ingen ladeplan'});
       });
       const cheap=visible.filter(p=>p.end>now).sort((a,b)=>a.value-b.value || a.t-b.t).slice(0,c.cheap_count);
       if(c.show_cheap) for(const p of cheap) {const a=x(Math.max(start,now,p.t)), b=x(Math.min(end,p.end)); elements+=`<rect x="${a}" y="${top}" width="${Math.max(0,b-a)}" height="${bottom-top}" fill="${esc(c.cheap_color)}" opacity=".10"/><line x1="${a}" y1="${bottom}" x2="${b}" y2="${bottom}" stroke="${esc(c.cheap_color)}" stroke-width="3"/>`;}
@@ -371,16 +380,16 @@
         elements+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${bottom}" stroke="${esc(c.now_color)}" stroke-width="1" stroke-dasharray="3 3"/><rect x="${labelX}" y="${top-2}" width="21" height="14" rx="2" fill="${esc(c.now_color)}"/><text x="${labelX+10.5}" y="${top+8}" text-anchor="middle" fill="#171717" font-size="9">Nu</text>`;
       }
       const legendHtml=c.show_legend && legend.length ?
-        '<div class="ep-legend">'+legend.map(({item,time,tooltip})=>
+        '<div class="ep-legend">'+legend.map(({item,time,compactTime,tooltip})=>
           '<div class="ep-item" title="'+esc(item.name+': '+tooltip)+'"><span class="ep-dot" style="background:'+esc(item.color)+'"></span>'+
           '<ha-icon class="ep-icon" icon="'+esc(item.icon)+'"></ha-icon>'+
-          '<span class="ep-name">'+esc(item.name)+'</span><span class="ep-time">'+esc(time)+'</span></div>'
+          '<span class="ep-name">'+esc(item.name)+'</span><span class="ep-time">'+esc(c.legend_compact?compactTime:time)+'</span></div>'
         ).join('')+'</div>' : '';
       const svgHtml=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Elpriser. ${current?'Aktuelt '+esc(priceFormat(current.value,c.decimals))+' '+esc(unit):'Aktuel pris mangler'}. Blå felter viser billigste tilgængelige intervaller."><defs><linearGradient id="${this._id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y(gradientLow)}" y2="${y(gradientHigh)}">${gradient}</linearGradient></defs>${elements}</svg>`;
       const position=c.show_legend?c.legend_position:'none';
-      const chips=legend.length?legend.map(({item,shortTime,tooltip})=>
+      const chips=legend.length?legend.map(({item,shortTime,compactTime,tooltip})=>
         '<span class="ep-top-item" title="'+esc(item.name+': '+tooltip)+'" aria-label="'+esc(item.name+': '+tooltip)+'" style="--ep-color:'+esc(item.color)+'">'+
-        '<ha-icon class="ep-icon" icon="'+esc(item.icon)+'"></ha-icon><span>'+esc(shortTime)+'</span></span>'
+        '<ha-icon class="ep-icon" icon="'+esc(item.icon)+'"></ha-icon><span>'+esc(c.legend_compact?compactTime:shortTime)+'</span></span>'
       ).join(''):'';
       const topHtml=position==='top' && chips?
         '<div class="ep-top"><div class="ep-top-items">'+chips+'</div></div>':'';
@@ -483,6 +492,7 @@
         this._input('legend_font_size',c.legend_font_size??10,'Legend tekststørrelse (px)','number','min="8" max="24" step="1"')+
         this._input('legend_icon_size',c.legend_icon_size??14,'Legend ikonstørrelse (px)','number','min="10" max="36" step="1"')+
         this._bool('show_legend','Vis forklaring / labels')+
+        this._bool('legend_compact','Kompakt legend (uden "om", dato, minutter eller +antal)')+
         '<label>Placering af forklaring<select data-key="legend_position">'+
         '<option value="bottom" '+((c.legend_position||'bottom')==='bottom'?'selected':'')+'>Nederst (navn, ikon og tid)</option>'+
         '<option value="top" '+(c.legend_position==='top'?'selected':'')+'>Øverst, højrestillet (egen række)</option>'+
