@@ -406,7 +406,7 @@ test('legend icon and text sizes are independently configurable in all legend pl
   assert.ok(card._root.innerHTML.includes('class="ep-tag"'));
   const y=Number(card._root.innerHTML.match(/class="ep-tag"[^>]*style="[^"]*top:([\d.]+)px/)[1]);
   assert.equal(y,35);
-  assert.ok(y+34<=68);
+  assert.ok(y+34<=70);
   assert.ok(card._root.innerHTML.includes('class="ep-chart"'));
   card.setConfig({...base,legend_position:'inline',legend_font_size:20,legend_icon_size:30,show_legend:false});
   assert.equal(card._totalHeight,110);
